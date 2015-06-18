@@ -110,5 +110,6 @@ hexo有丰富的主题支持,本博客用的就是[jacman](http://wuchong.me/jac
     npm install hexo-deployer-git --save
 
 因为hexo3.0把它插件化了,然后我在官方文档找到了答案.
+**最后提示一下：如果运行命令出现什么问题，加上sudo试试看看，里面有些需要root权限**
 
 仅以此文记录折腾hexo的过程,并且希望给后来者有参考价值.
