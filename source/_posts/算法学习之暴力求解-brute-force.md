@@ -1,6 +1,6 @@
 title: 算法学习之暴力求解(brute force)
 date: 2015-06-18 16:53:51
-tags: 暴力求解
+tags: [暴力求解,算法]
 categories: 算法学习
 ---
 

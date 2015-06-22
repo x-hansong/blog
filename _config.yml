@@ -68,7 +68,7 @@ theme: jacman
 plugins:
 - hexo-generator-feed
 - hexo-generator-sitemap
-
+- hexo-math
 # Stylus
 stylus:
    compress: true

@@ -1,6 +1,6 @@
 title: 算法学习之分治法(divide and conquer)
 date: 2015-06-18 18:50:50
-tags: 分治法
+tags: [分治法,算法]
 categories: 算法学习
 ---
 
@@ -9,7 +9,7 @@ categories: 算法学习
 
 ## 解决问题的流程
 
-{% asset_img 00.png [divide and conquer]%}_
+{% asset_img 00.png [divide and conquer]%}
 
 ## 分治法适用情况
 
@@ -40,12 +40,12 @@ categories: 算法学习
 值得一提的是归并排序通过数组的下标分割子问题，即每次都把数组分为两半。
 
 **伪代码如下**
-{% asset_img 01.png [merge_sort]%}_
+{% asset_img 01.png [merge_sort]%}
 
-{% asset_img 02.png [merge] %}_
+{% asset_img 02.png [merge] %}
 
 **例子**
-{% asset_img 03.png [例子] %}_
+{% asset_img 03.png [例子] %}
 
 ### 快速排序
 
@@ -53,13 +53,13 @@ categories: 算法学习
 
 **伪代码如下**
 
-{% asset_img 04.png [quick_sort] %}_
+{% asset_img 04.png [quick_sort] %}
 
-{% asset_img 05.jpg [partition] %}_
+{% asset_img 05.jpg [partition] %}
 
 **例子**
 
-{% asset_img 06.jpg [例子] %}_
+{% asset_img 06.jpg [例子] %}
 
 
 ### 二分搜索
@@ -68,29 +68,41 @@ categories: 算法学习
 
 **伪代码如下**
 
-{% asset_img 07.png [binary_search] %}_
+{% asset_img 07.png [binary_search] %}
 
 **例子**
 
-{% asset_img 08.png [例子] %}_
+{% asset_img 08.png [例子] %}
 
 
 ### 大整数乘法
 
 
-对于任意位数的2个数相乘`a * b`，写成：
+对于任意位数的2个数相乘 $a * b$ ，写成：
+{% math_block %}
+a = a_{1} * 10^{(n_{1}/2)} + a_{0}
+{% endmath_block %}
+$n_{1}$为$a$的位数
 
-`a = a1 * 10^(n1/2) + a0`　　　　　　-----n1为a的位数
+{% math_block %}
+b = b_{1} * 10^{(n_{2}/2)} + b_{0}　　　　　  
+{% endmath_block %}
+$n_{2}$为$b$的位数
 
-`b = b1 * 10^(n2/2) + b0`　　　　　-----n2为b的位数分治策略就是基于以上变换，将a，b写成前一半数字和后一半数字相加的形式，例如若a = 5423678，那么a1 = 542，a0 = 3678（注意若不是偶数截取较小一半）
+分治策略就是基于以上变换，将a，b写成前一半数字和后一半数字相加的形式，例如若$a = 5423678$，那么$a\_{1} = 542$  $a\_{0} = 3678$（注意若不是偶数截取较小一半）
 
-这样a和b相乘就可以写为：`a * b = { a1 * 10^(n1/2) + a0 } * { b1 * 10^(n2/2) + b0 }`
-
-展开后整理得： `a * b = a1*b1 * 10^[ (n1+n2)/2 ] + a1*b0 * 10^(n1/2) + a0*b1 * 10^(n2/2) + a0*b0`　　四项
-
-这样就很容易递归的来求`a * b`，如果你嫌分解后的数还太大，就可以继续分解。（你可以自己规定在何时结束递归）
+这样a和b相乘就可以写为：
+{% math_block %}
+a * b = { a_{1} * 10^{(n_{1}/2)} + a_{0} } * { b_{1} * 10^{(n_{2}/2)} + b_{0} }
+{% endmath_block %}
+展开后整理得：
+{% math_block %}
+a * b = a_{1}*b_{1} * 10^{[(n_{1}+n_{2})/2]} + a_{1}*b_{0} * 10^{(n_{1}/2)} + a_{0}*b_{1} * 10^{(n_{2}/2)} + a_{0}*b_{0}　
+{% endmath_block %}
+这样就很容易递归的来求$a * b$，如果嫌分解后的数还太大，就可以继续分解。（你可以自己规定在何时结束递归）
 
 ## 总结
+
 分治法实际上就是类似于数学归纳法，找到解决本问题的求解方程公式，然后根据方程公式设计递归程序。
 1. 一定是先找到最小问题规模时的求解方法
 3. 然后考虑随着问题规模增大时的求解方法
@@ -98,5 +110,7 @@ categories: 算法学习
 
 
 参考资料：
+
 [五大常用算法之一：分治算法](http://www.cnblogs.com/steven_oyj/archive/2010/05/22/1741370.html)
+
 [大整数乘法和Strassen矩阵乘法](http://www.cnblogs.com/kkgreen/archive/2011/06/12/2078668.html)

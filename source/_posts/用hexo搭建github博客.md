@@ -1,6 +1,6 @@
 title: 用hexo搭建github博客
 date: 2015-06-17 10:14:18
-tags: hexo github 
+tags: [hexo, github] 
 categories: Hexo
 ---
 
@@ -113,3 +113,6 @@ hexo有丰富的主题支持,本博客用的就是[jacman](http://wuchong.me/jac
 **最后提示一下：如果运行命令出现什么问题，加上sudo试试看看，里面有些需要root权限**
 
 仅以此文记录折腾hexo的过程,并且希望给后来者有参考价值.
+
+最后推荐一篇极其详细的使用hexo的文章[hexo你的博客](http://ibruce.info/2013/11/22/hexo-your-blog/)
+_里面的搭建流程是hexo2.0的,最好参考官方文档3.0的方法_
