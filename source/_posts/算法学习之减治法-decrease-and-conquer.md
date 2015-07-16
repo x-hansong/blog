@@ -23,7 +23,7 @@ categories: 算法学习
 
 ##### Kahn算法
 
-    L← Empty list that will contain the sorted elements
+    L ← Empty list that will contain the sorted elements
     S ← Set of all nodes with no incoming edges
     while S is non-empty do
         remove a node n from S
@@ -94,7 +94,7 @@ Kahn算法不需要检测图为DAG，如果图为DAG，那么在出度为0的集
 计算两个整数的积
 
 #### 原理
-n \* m = n/2 \* m  n为偶数
+n \* m = n/2 \* 2m  n为偶数
 n \* m  = (n-1)/2 \* 2m + m  (if n > 1  and m if n = 1) n为奇数
 
 #### 例子
