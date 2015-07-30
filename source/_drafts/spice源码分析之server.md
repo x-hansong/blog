@@ -5,47 +5,29 @@ categories: spice源码分析
 ---
 
 # spice.h
-定义spice的各种接口,包括ChannelEvent,MouseState等.
-其中比较重要的有:
+
+**部分宏定义**
+- **SPICE_GNUC_DEPRECATED**,其定义是`#define SPICE_GNUC_DEPRECATED  __attribute__((__deprecated__))`表示该函数以及被弃用,在编译时会给出警告
+- **SPICE_GNUC_VISIBLE**,其定义是`#define SPICE_GNUC_VISIBLE __attribute__ ((visibility ("default")))`用于控制符号的可见性,设置为对外可见.spice动态链接库默认隐藏对外部的可见性,即外部文件不能调用库里面的函数,有这个声明的函数可以被外部文件调用,即为公共函数.
+
+**定义spice的各种接口**:
+- QXLInterface
+- SpiceCharDeviceInterface
+- SpiceCoreInterface
+- SpiceKbdInterface
+- SpiceMigrateInterface
+- SpiceMouseInterface
+- SpicePlaybackInterface
+- SpiceRecordInterface
+- SpiceTabletInterface
+
+**重要的结构体有**:
 - SpiceServer
 其实是定义在reds-private.h中的RedsState结构体.
-相关函数
+跟SpiceServer相关的函数的实现在reds.c中.
 ```
 SpiceServer *spice_server_new(void);
 int spice_server_init(SpiceServer *s, SpiceCoreInterface *core);
 void spice_server_destroy(SpiceServer *s);
 ```
-跟SpiceServer相关的函数的实现在reds.c中.
 
-```
- /* new interface */
-SPICE_GNUC_VISIBLE SpiceServer *spice_server_new(void)
-{
-    /* we can't handle multiple instances (yet) */
-    spice_assert(reds == NULL);
-
-    reds = spice_new0(RedsState, 1);//调用一个宏,来针对不同的编译环境进行优化.
-    return reds;
-}
-```
-```
-SPICE_GNUC_VISIBLE int spice_server_init(SpiceServer *s, SpiceCoreInterface *core)
-{
-    int ret;
-
-    spice_assert(reds == s);
-    ret = do_spice_init(core);//初始化结构体变量
-    if (default_renderer) {
-        red_dispatcher_add_renderer(default_renderer);
-    }
-    return ret;
-}
-```
-```
-SPICE_GNUC_VISIBLE void spice_server_destroy(SpiceServer *s)
-{
-    spice_assert(reds == s);
-    reds_exit();//关闭主通道
-}
-
-```
