@@ -65,17 +65,81 @@ SPICE_GNUC_VISIBLE void spice_server_set_seamless_migration(SpiceServer *s, int 
 
 ## 定义spice的各种接口:
 - QXLInterface
+```
+    void (*attache_worker)(QXLInstance *qin, QXLWorker *qxl_worker);
+    void (*set_compression_level)(QXLInstance *qin, int level);
+    void (*set_mm_time)(QXLInstance *qin, uint32_t mm_time);
+
+    void (*get_init_info)(QXLInstance *qin, QXLDevInitInfo *info);
+    int (*get_command)(QXLInstance *qin, struct QXLCommandExt *cmd);
+    int (*req_cmd_notification)(QXLInstance *qin);
+    void (*release_resource)(QXLInstance *qin, struct QXLReleaseInfoExt release_info);
+    int (*get_cursor_command)(QXLInstance *qin, struct QXLCommandExt *cmd);
+    int (*req_cursor_notification)(QXLInstance *qin);
+    void (*notify_update)(QXLInstance *qin, uint32_t update_id);
+    int (*flush_resources)(QXLInstance *qin);
+    void (*async_complete)(QXLInstance *qin, uint64_t cookie);
+    void (*update_area_complete)(QXLInstance *qin, uint32_t surface_id,
+                                 struct QXLRect *updated_rects,
+                                 uint32_t num_updated_rects);
+    void (*set_client_capabilities)(QXLInstance *qin,
+                                    uint8_t client_present,
+                                    uint8_t caps[58]);
+    /* returns 1 if the interface is supported, 0 otherwise.
+     * if monitors_config is NULL nothing is done except reporting the
+     * return code. */
+    int (*client_monitors_config)(QXLInstance *qin,
+                                  VDAgentMonitorsConfig *monitors_config);
+```
 - SpiceCharDeviceInterface
+```
+    void (*state)(SpiceCharDeviceInstance *sin, int connected);
+    int (*write)(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len);
+    int (*read)(SpiceCharDeviceInstance *sin, uint8_t *buf, int len);
+    void (*event)(SpiceCharDeviceInstance *sin, uint8_t event);
+```
 - SpiceCoreInterface: 创建,添加,取消定时和监听事件
+```
+    SpiceTimer *(*timer_add)(SpiceTimerFunc func, void *opaque);
+    void (*timer_start)(SpiceTimer *timer, uint32_t ms);
+    void (*timer_cancel)(SpiceTimer *timer);
+    void (*timer_remove)(SpiceTimer *timer);
+
+    SpiceWatch *(*watch_add)(int fd, int event_mask, SpiceWatchFunc func, void *opaque);
+    void (*watch_update_mask)(SpiceWatch *watch, int event_mask);
+    void (*watch_remove)(SpiceWatch *watch);
+
+    void (*channel_event)(int event, SpiceChannelEventInfo *info);
+```
 - SpiceKbdInterface
+```
+    void (*push_scan_freg)(SpiceKbdInstance *sin, uint8_t frag);
+    uint8_t (*get_leds)(SpiceKbdInstance *sin);
+```
 - SpiceMigrateInterface
+```
+    void (*migrate_connect_complete)(SpiceMigrateInstance *sin);
+    void (*migrate_end_complete)(SpiceMigrateInstance *sin);
+```
 - SpiceMouseInterface
+```
+    void (*motion)(SpiceMouseInstance *sin, int dx, int dy, int dz,
+                   uint32_t buttons_state);
+    void (*buttons)(SpiceMouseInstance *sin, uint32_t buttons_state);
+```
 - SpicePlaybackInterface
 - SpiceRecordInterface
 - SpiceTabletInterface
+```
+    void (*set_logical_size)(SpiceTabletInstance* tablet, int width, int height);
+    void (*position)(SpiceTabletInstance* tablet, int x, int y, uint32_t buttons_state);
+    void (*wheel)(SpiceTabletInstance* tablet, int wheel_moution, uint32_t buttons_state);
+    void (*buttons)(SpiceTabletInstance* tablet, uint32_t buttons_state);
+
+```
 
 ## 重要的结构体
-###SpiceServer
+### SpiceServer
 其实是定义在reds-private.h中的RedsState结构体.
 ```
 int listen_socket;
@@ -102,23 +166,10 @@ uint32_t mm_time_latency;
 # channels
 
 ## red_channel.h
+服务器包括了两种Channel,一种是与qemu连接的,一种是与客户端连接.
 
 ### 重要的结构体
-- RedChannelClient
-```
-RingItem channel_link;
-RingItem client_link;
-RedChannel *channel;
-RedClient  *client;
-RedsStream *stream;
-OutgoingHandler outgoing;//缓冲区信息+OutgoingHandlerInterface
-IncomingHandler incoming;//缓冲区信息+IncomingHandlerInterface
-struct ack_data;
-struct send_data;
-RedChannelClientLatencyMonitor latency_monitor;//延迟监听器
-RedChannelClientConnectivityMonitor connectivity_monitor;//连接监听器
-```
-- RedChannel
+- **RedChannel**:所有Channel的父结构体.
     ```
     uint32_t type;
     uint32_t id;
@@ -142,7 +193,6 @@ RedChannelClientConnectivityMonitor connectivity_monitor;//连接监听器
 
     pthread_t thread_id;
     ```
-    所有channel的父类,虽然C没有类的概念,但是隐含了这一层的意思,可以说是C的类实现.
     - SpiceCoreInterface
     - OutgoingHandlerInterface:定义处理输出消息的函数接口
     - IncomingHandlerInterface:定义处理输入消息的函数接口
@@ -151,24 +201,65 @@ RedChannelClientConnectivityMonitor connectivity_monitor;//连接监听器
 
     RedChannel持有已连接的客户端通道(RedChannelClient),当连接断开时负责销毁它们.
 
-- RedClient
-```
+- **RedChannelClient**:与客户端连接的通道结构体的父结构体.
+    ```
+RingItem channel_link;
+RingItem client_link;
+RedChannel *channel;
+RedClient  *client;
+RedsStream *stream;
+OutgoingHandler outgoing;//缓冲区信息+OutgoingHandlerInterface
+IncomingHandler incoming;//缓冲区信息+IncomingHandlerInterface
+struct ack_data;
+struct send_data;
+RedChannelClientLatencyMonitor latency_monitor;//延迟监听器
+RedChannelClientConnectivityMonitor connectivity_monitor;//连接监听器
+    ```
+
+- **RedClient**:客户端结构体,包含客户端的信息
+    ```
 RingItem link;
 Ring channels;//其他通道的环
 MainChannelClient *mcc;
 pthread_mutex_t lock; // different channels can be in different threads
 pthread_t thread_id;
 int refs; 
-```
+    ```
+    RedClient在reds_handle_main_link中被创建,并且加入reds的环中.然后MainChannel创建一个MainChannelClient,并且将其赋予RedClient
 
 ### 重要函数
 - red_channel_create
-```
+    ```
  RedChannel *red_channel_create(int size,
                                SpiceCoreInterface *core,
-                               uint32_t type, uint32_t id,
+                               uint32_t type,//通道类型
+                               uint32_t id,
                                int handle_acks,
                                channel_handle_message_proc handle_message,
                                ChannelCbs *channel_cbs,
                                uint32_t migration_flags)
+    ```
+    通道类型包括
+    ```
+    SPICE_CHANNEL_MAIN = 1,
+    SPICE_CHANNEL_DISPLAY,
+    SPICE_CHANNEL_INPUTS,
+    SPICE_CHANNEL_CURSOR,
+    SPICE_CHANNEL_PLAYBACK,
+    SPICE_CHANNEL_RECORD,
+    SPICE_CHANNEL_TUNNEL,
+    SPICE_CHANNEL_SMARTCARD,
+    SPICE_CHANNEL_USBREDIR,
+    SPICE_CHANNEL_PORT,
+    SPICE_CHANNEL_WEBDAV,
+    ```
+- **red_channel_client_create**
 ```
+RedChannelClient *red_channel_client_create(int size, RedChannel *channel, RedClient  *client,
+                                            RedsStream *stream,
+                                            int monitor_latency,
+                                            int num_common_caps, uint32_t *common_caps,
+                                            int num_caps, uint32_t *caps)
+```
+
+- **reds_handle_auth_mechanism**
