@@ -164,7 +164,7 @@ uint32_t mm_time_latency;
 可以看到,RedsState拥有通道环和客户端环
 
 # channels
-
+Channel是spice服务器与qemu和客户端传输信息的通道.
 ## red_channel.h
 服务器包括了两种Channel,一种是与qemu连接的,一种是与客户端连接.
 
@@ -228,7 +228,7 @@ int refs;
     RedClient在reds_handle_main_link中被创建,并且加入reds的环中.然后MainChannel创建一个MainChannelClient,并且将其赋予RedClient
 
 ### 重要函数
-- red_channel_create
+- **red_channel_create**
     ```
  RedChannel *red_channel_create(int size,
                                SpiceCoreInterface *core,
@@ -262,4 +262,124 @@ RedChannelClient *red_channel_client_create(int size, RedChannel *channel, RedCl
                                             int num_caps, uint32_t *caps)
 ```
 
-- **reds_handle_auth_mechanism**
+## main_channel.h
+
+## inputs_channel.h
+
+
+
+# dispatcher
+
+## dispatcher.h
+
+### 重要的结构体
+
+- **Dispatcher**
+```
+    SpiceCoreInterface *recv_core;
+    int recv_fd;
+    int send_fd;
+    pthread_t self;
+    pthread_mutex_t lock;
+    DispatcherMessage *messages;//调度消息动态数组,根据max_message_type的值分配.
+    int stage;  /* message parser stage - sender has no stages */
+    size_t max_message_type;//消息的种类
+    void *payload; /* allocated as max of message sizes */
+    size_t payload_size; /* used to track realloc calls */
+    void *opaque;
+    dispatcher_handle_async_done handle_async_done;
+```
+- **DispatcherMessage**
+    ```
+    size_t size;
+    int ack;
+    dispatcher_handle_message handler;
+    ```
+### 重要函数
+- **dispatcher_init**
+    ```
+void dispatcher_init(Dispatcher *dispatcher, size_t max_message_type,
+                     void *opaque)
+    ```
+    打开进程间套接字(send_fd,recv_fd),初始化线程锁(lock)和消息类型(message).
+    
+## red_dispatcher.h
+定义了跟QXLWorker和red_dispatcher相关的函数.
+### 重要的结构体
+- **RedDispatcher**
+    ```
+    QXLWorker base;
+    QXLInstance *qxl;
+    Dispatcher dispatcher;
+    pthread_t worker_thread;
+    uint32_t pending;
+    int primary_active;
+    int x_res;
+    int y_res;
+    int use_hardware_cursor;
+    RedDispatcher *next;
+    Ring async_commands;
+    pthread_mutex_t  async_lock;
+    QXLDevSurfaceCreate surface_create;
+    ```
+    用于调度RedWorker,QXLWorker.对应一个worker线程.主要负责图像处理的调度.
+
+### 重要函数
+
+- **对外可见函数**
+    ```
+SPICE_GNUC_VISIBLE void spice_qxl_wakeup(QXLInstance *instance)
+SPICE_GNUC_VISIBLE void spice_qxl_oom(QXLInstance *instance)
+SPICE_GNUC_VISIBLE void spice_qxl_start(QXLInstance *instance)
+SPICE_GNUC_VISIBLE void spice_qxl_stop(QXLInstance *instance)
+SPICE_GNUC_VISIBLE void spice_qxl_update_area(QXLInstance *instance, uint32_t surface_id,
+SPICE_GNUC_VISIBLE void spice_qxl_add_memslot(QXLInstance *instance, QXLDevMemSlot *slot)
+SPICE_GNUC_VISIBLE void spice_qxl_del_memslot(QXLInstance *instance, uint32_t slot_group_id, uint32_t slot_id)
+SPICE_GNUC_VISIBLE void spice_qxl_reset_memslots(QXLInstance *instance)
+SPICE_GNUC_VISIBLE void spice_qxl_destroy_surfaces(QXLInstance *instance)
+SPICE_GNUC_VISIBLE void spice_qxl_destroy_primary_surface(QXLInstance *instance, uint32_t surface_id)
+SPICE_GNUC_VISIBLE void spice_qxl_create_primary_surface(QXLInstance *instance, uint32_t surface_id,
+SPICE_GNUC_VISIBLE void spice_qxl_reset_image_cache(QXLInstance *instance)
+SPICE_GNUC_VISIBLE void spice_qxl_reset_cursor(QXLInstance *instance)
+SPICE_GNUC_VISIBLE void spice_qxl_destroy_surface_wait(QXLInstance *instance, uint32_t surface_id)
+SPICE_GNUC_VISIBLE void spice_qxl_loadvm_commands(QXLInstance *instance, struct QXLCommandExt *ext, uint32_t count)
+SPICE_GNUC_VISIBLE void spice_qxl_update_area_async(QXLInstance *instance, uint32_t surface_id, QXLRect *qxl_area,
+SPICE_GNUC_VISIBLE void spice_qxl_add_memslot_async(QXLInstance *instance, QXLDevMemSlot *slot, uint64_t cookie)
+SPICE_GNUC_VISIBLE void spice_qxl_destroy_surfaces_async(QXLInstance *instance, uint64_t cookie)
+SPICE_GNUC_VISIBLE void spice_qxl_destroy_primary_surface_async(QXLInstance *instance, uint32_t surface_id, uint64_t cookie)
+SPICE_GNUC_VISIBLE void spice_qxl_create_primary_surface_async(QXLInstance *instance, uint32_t surface_id,
+SPICE_GNUC_VISIBLE void spice_qxl_destroy_surface_async(QXLInstance *instance, uint32_t surface_id, uint64_t cookie)
+SPICE_GNUC_VISIBLE void spice_qxl_flush_surfaces_async(QXLInstance *instance, uint64_t cookie)
+SPICE_GNUC_VISIBLE void spice_qxl_monitors_config_async(QXLInstance *instance, QXLPHYSICAL monitors_config,
+SPICE_GNUC_VISIBLE void spice_qxl_driver_unload(QXLInstance *instance)
+    ```
+    实际上是对内部函数的封装,提供给外部调用.
+## main_dispatcher.h
+
+### 重要的结构体
+- **MainDispatcher**
+    ```
+    Dispatcher base;
+    SpiceCoreInterface *core;
+    ```
+
+### 重要函数
+- **main_dispatcher_init**
+    ```
+void main_dispatcher_init(SpiceCoreInterface *core)
+    ```
+    设置SpiceCoreInterface
+    监听recv_fd的读事件
+    配置各种消息的handler
+
+- **dispatcher_register_handler**
+    ```
+void dispatcher_register_handler(Dispatcher *dispatcher, uint32_t message_type,
+                                 dispatcher_handle_message handler,
+                                 size_t size, int ack)
+    ```
+    设置handler
+    设置payload
+
+
+
