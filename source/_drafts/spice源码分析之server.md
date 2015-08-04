@@ -305,6 +305,12 @@ void dispatcher_init(Dispatcher *dispatcher, size_t max_message_type,
     
 ## red_dispatcher.h
 定义了跟QXLWorker和red_dispatcher相关的函数.
+- 调度器与QXL设备实例一对一
+- 从QXL设备和Reds中封装worker内部构件
+- 为每个QXL设备实例初始化一个worker并创建一个worker线程
+- 使用socketpair分发给worker
+- QXL设备使用QXLWorker接口，这个接口在red dispathcher中实现，它把设备调用翻译成消息通过red worker管道传输。这种方式使QXL设备和调度器分开并且逻辑上独立。
+- Reds使用定义在red_dispatcher.h中的接口来使用调度器的功能如调度器初始化，改变图像压缩率，改变视频流状态，鼠标模式设置，额外渲染。
 ### 重要的结构体
 - **RedDispatcher**
     ```
@@ -369,8 +375,14 @@ SPICE_GNUC_VISIBLE void spice_qxl_driver_unload(QXLInstance *instance)
 void main_dispatcher_init(SpiceCoreInterface *core)
     ```
     设置SpiceCoreInterface
-    监听recv_fd的读事件
-    配置各种消息的handler
+    监听recv_fd的读事件`core->watch_add(main_dispatcher.base.recv_fd, SPICE_WATCH_EVENT_READ,dispatcher_handle_read, &main_dispatcher.base);`
+    配置各种消息的handler(调用dispatcher_register_handler)
+    四种消息
+    - MAIN_DISPATCHER_CHANNEL_EVENT = 0,
+    - MAIN_DISPATCHER_MIGRATE_SEAMLESS_DST_COMPLETE,
+    - MAIN_DISPATCHER_SET_MM_TIME_LATENCY,
+    - MAIN_DISPATCHER_CLIENT_DISCONNECT,
+
 
 - **dispatcher_register_handler**
     ```
@@ -381,5 +393,114 @@ void dispatcher_register_handler(Dispatcher *dispatcher, uint32_t message_type,
     设置handler
     设置payload
 
+# red_worker.h
+## 重要的结构体
+- **RedWorker**
+    ```
+    DisplayChannel *display_channel;
+    CursorChannel *cursor_channel;
+    QXLInstance *qxl;
+    RedDispatcher *red_dispatcher;
 
+    int channel;//dispatcher的recv_fd
+    int id;
+    int running;
+    uint32_t *pending;
+    struct pollfd poll_fds[MAX_EVENT_SOURCES];//poll事件驱动
+    struct SpiceWatch watches[MAX_EVENT_SOURCES];//监听事件
+    unsigned int event_timeout;
+    uint32_t repoll_cmd_ring;
+    uint32_t repoll_cursor_ring;
+    uint32_t num_renderers;
+    uint32_t renderers[RED_MAX_RENDERERS];
+    uint32_t renderer;
+
+    RedSurface surfaces[NUM_SURFACES];
+    uint32_t n_surfaces;
+    SpiceImageSurfaces image_surfaces;
+
+    MonitorsConfig *monitors_config;
+
+    Ring current_list;
+    uint32_t current_size;
+    uint32_t drawable_count;
+    uint32_t red_drawable_count;
+    uint32_t glz_drawable_count;
+    uint32_t transparent_count;
+
+    uint32_t shadows_count;
+    uint32_t containers_count;
+    uint32_t stream_count;
+
+    uint32_t bits_unique;
+
+    CursorItem *cursor;
+    int cursor_visible;
+    SpicePoint16 cursor_position;
+    uint16_t cursor_trail_length;
+    uint16_t cursor_trail_frequency;
+
+    _Drawable drawables[NUM_DRAWABLES];
+    _Drawable *free_drawables;
+
+    _CursorItem cursor_items[NUM_CURSORS];
+    _CursorItem *free_cursor_items;
+
+    RedMemSlotInfo mem_slots;
+
+    uint32_t preload_group_id;
+
+    ImageCache image_cache;
+
+    spice_image_compression_t image_compression;
+    spice_wan_compression_t jpeg_state;
+    spice_wan_compression_t zlib_glz_state;
+
+    uint32_t mouse_mode;
+
+    uint32_t streaming_video;
+    Stream streams_buf[NUM_STREAMS];
+    Stream *free_streams;
+    Ring streams;
+    ItemTrace items_trace[NUM_TRACE_ITEMS];
+    uint32_t next_item_trace;
+    uint64_t streams_size_total;
+    //图像压缩算法
+    QuicData quic_data;
+    QuicContext *quic;
+    //图像压缩算法
+    LzData lz_data;
+    LzContext  *lz;
+    //jpeg编码
+    JpegData jpeg_data;
+    JpegEncoderContext *jpeg;
+    //压缩库
+    ZlibData zlib_data;
+    ZlibEncoder *zlib;
+
+    uint32_t process_commands_generation;
+
+    int driver_cap_monitors_config;
+    int set_client_capabilities_pending;
+
+    ```
+- **SpiceWatch**
+    ```
+    struct RedWorker *worker;
+    SpiceWatchFunc watch_func;
+    void *watch_func_opaque;
+    ```
+## 重要函数
+- **red_worker_main**
+    在red_dispatcher_init中创建线程被调用.
+    - 处理QXL设备命令（绘图，更新，指针等）
+    - 处理从调度器收到的消息
+    - 通道传输
+    - 管理Display 和 Cursor 通道
+    - 图像压缩（使用 quic, lz, glzencoding)
+    - 视频流-识别，编码和流创建
+    - 缓存-客户端共享像图缓存，指针缓存，调色板缓存
+    - 图像移除优化-正在使用项树，容器，阴影，临界区域，不透明项。
+    - Cairo 和 OpenGL渲染-canvas,surface
+    - 对于环的操作
 

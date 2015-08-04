@@ -111,9 +111,22 @@ hexo有丰富的主题支持,本博客用的就是[jacman](http://wuchong.me/jac
     npm install hexo-deployer-git --save
 
 因为hexo3.0把它插件化了,然后我在官方文档找到了答案.
-**最后提示一下：如果运行命令出现什么问题，加上sudo试试看看，里面有些需要root权限**
+**最后提示一下：如果运行命令出现什么问题，加上sudo试试看看，里面有些需要root权限(例如说`sudo hexo server`)**
 
 仅以此文记录折腾hexo的过程,并且希望给后来者有参考价值.
 
 最后推荐一篇极其详细的使用hexo的文章[hexo你的博客](http://ibruce.info/2013/11/22/hexo-your-blog/)
 _里面的搭建流程是hexo2.0的,最好参考官方文档3.0的方法_
+
+# 补充
+## 关于草稿的使用方法
+官方文档关于草稿的使用没有说的很清楚,我根据自己的使用情况作一些介绍.
+- 创建草稿
+    `hexo new draft "title"`
+    在source/_drafts中会创建一份md文件.作为草稿.
+- 预览草稿
+    这一步文档中只是要加`--draft`,没有详细说在哪里加这个选项.根据我的实验,需要在两个命令中添加`--draft`
+    `hexo generate --draft`在生成时同时生成草稿
+    `hexo server --draft`在本地预览时显示草稿
+- 发布草稿
+    `hexo publish draft "title"`把草稿从_draft中移动到_post
