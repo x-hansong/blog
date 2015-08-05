@@ -302,6 +302,12 @@ void dispatcher_init(Dispatcher *dispatcher, size_t max_message_type,
                      void *opaque)
     ```
     打开进程间套接字(send_fd,recv_fd),初始化线程锁(lock)和消息类型(message).
+- **dispathcher_send_message**
+    ```
+ void dispatcher_send_message(Dispatcher *dispatcher, uint32_t message_type,
+                             void *payload)
+    ```
+    获取线程锁,发送消息和payload,如果消息的ack类型是DISPATCHER_ACK,就等待ACK
     
 ## red_dispatcher.h
 定义了跟QXLWorker和red_dispatcher相关的函数.
@@ -374,10 +380,10 @@ SPICE_GNUC_VISIBLE void spice_qxl_driver_unload(QXLInstance *instance)
     ```
 void main_dispatcher_init(SpiceCoreInterface *core)
     ```
-    设置SpiceCoreInterface
-    监听recv_fd的读事件`core->watch_add(main_dispatcher.base.recv_fd, SPICE_WATCH_EVENT_READ,dispatcher_handle_read, &main_dispatcher.base);`
-    配置各种消息的handler(调用dispatcher_register_handler)
-    四种消息
+    - 设置SpiceCoreInterface
+    - 监听recv_fd的读事件`core->watch_add(main_dispatcher.base.recv_fd, SPICE_WATCH_EVENT_READ,dispatcher_handle_read, &main_dispatcher.base);`
+    - 配置各种消息的handler(调用dispatcher_register_handler)
+    **四种消息类型**
     - MAIN_DISPATCHER_CHANNEL_EVENT = 0,
     - MAIN_DISPATCHER_MIGRATE_SEAMLESS_DST_COMPLETE,
     - MAIN_DISPATCHER_SET_MM_TIME_LATENCY,
@@ -390,8 +396,8 @@ void dispatcher_register_handler(Dispatcher *dispatcher, uint32_t message_type,
                                  dispatcher_handle_message handler,
                                  size_t size, int ack)
     ```
-    设置handler
-    设置payload
+    - 设置handler
+    - 设置payload
 
 # red_worker.h
 ## 重要的结构体
@@ -504,3 +510,69 @@ void dispatcher_register_handler(Dispatcher *dispatcher, uint32_t message_type,
     - Cairo 和 OpenGL渲染-canvas,surface
     - 对于环的操作
 
+- **red_init**
+    注册相关的消息类型,每种消息都有对应的处理函数,调用register_callbacks注册
+    ```
+    RED_WORKER_MESSAGE_NOP,
+    RED_WORKER_MESSAGE_UPDATE,
+    RED_WORKER_MESSAGE_WAKEUP,
+    RED_WORKER_MESSAGE_OOM,
+    RED_WORKER_MESSAGE_READY,
+    RED_WORKER_MESSAGE_DISPLAY_CONNECT,
+    RED_WORKER_MESSAGE_DISPLAY_DISCONNECT,
+    RED_WORKER_MESSAGE_DISPLAY_MIGRATE,
+    RED_WORKER_MESSAGE_START,
+    RED_WORKER_MESSAGE_STOP,
+    RED_WORKER_MESSAGE_CURSOR_CONNECT,
+    RED_WORKER_MESSAGE_CURSOR_DISCONNECT,
+    RED_WORKER_MESSAGE_CURSOR_MIGRATE,
+    RED_WORKER_MESSAGE_SET_COMPRESSION,
+    RED_WORKER_MESSAGE_SET_STREAMING_VIDEO,
+    RED_WORKER_MESSAGE_SET_MOUSE_MODE,
+    RED_WORKER_MESSAGE_ADD_MEMSLOT,
+    RED_WORKER_MESSAGE_DEL_MEMSLOT,
+    RED_WORKER_MESSAGE_RESET_MEMSLOTS,
+    RED_WORKER_MESSAGE_DESTROY_SURFACES,
+    RED_WORKER_MESSAGE_CREATE_PRIMARY_SURFACE,
+    RED_WORKER_MESSAGE_DESTROY_PRIMARY_SURFACE,
+    RED_WORKER_MESSAGE_RESET_CURSOR,
+    RED_WORKER_MESSAGE_RESET_IMAGE_CACHE,
+    RED_WORKER_MESSAGE_DESTROY_SURFACE_WAIT,
+    RED_WORKER_MESSAGE_LOADVM_COMMANDS,
+    /* async commands */
+    RED_WORKER_MESSAGE_UPDATE_ASYNC,
+    RED_WORKER_MESSAGE_ADD_MEMSLOT_ASYNC,
+    RED_WORKER_MESSAGE_DESTROY_SURFACES_ASYNC,
+    RED_WORKER_MESSAGE_CREATE_PRIMARY_SURFACE_ASYNC,
+    RED_WORKER_MESSAGE_DESTROY_PRIMARY_SURFACE_ASYNC,
+    RED_WORKER_MESSAGE_DESTROY_SURFACE_WAIT_ASYNC,
+    /* suspend/windows resolution change command */
+    RED_WORKER_MESSAGE_FLUSH_SURFACES_ASYNC,
+
+    RED_WORKER_MESSAGE_DISPLAY_CHANNEL_CREATE,
+    RED_WORKER_MESSAGE_CURSOR_CHANNEL_CREATE,
+
+    RED_WORKER_MESSAGE_MONITORS_CONFIG_ASYNC,
+    RED_WORKER_MESSAGE_DRIVER_UNLOAD,
+    ```
+    最后,初始化poll读事件,设置处理函数为handle_dev_input
+    
+# spice_timer_queue.h
+**timer_queue_list**:包括所有处于不同线程中的timer_queue
+每个timer_queue包括两种链接方式,不活跃和活跃timer.即link,active_link
+活跃并且不超时的timer会在poll事件触发之后被执行(spice_timer_queue_cb).
+## 重要的结构体
+- **SpiceTimer**
+    ```
+    RingItem link;
+    RingItem active_link;
+
+    SpiceTimerFunc func;//opaque的处理函数
+    void *opaque;
+
+    SpiceTimerQueue *queue;
+
+    int is_active;
+    uint32_t ms;//timer有效时间
+    uint64_t expiry_time;//超时时间
+    ```
