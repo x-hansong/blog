@@ -193,12 +193,6 @@ Channel是spice服务器与qemu和客户端传输信息的通道.
 
     pthread_t thread_id;
     ```
-    - SpiceCoreInterface
-    - OutgoingHandlerInterface:定义处理输出消息的函数接口
-    - IncomingHandlerInterface:定义处理输入消息的函数接口
-    - ChannelCbs:用于处理客户端数据流事件的回调函数,被监听数据流事件的线程调用
-    - ClientCbs:用于处理客户端事件的回调函数,例如连接事件等,被处理RedClient的线程调用
-
     RedChannel持有已连接的客户端通道(RedChannelClient),当连接断开时负责销毁它们.
 
 - **RedChannelClient**:与客户端连接的通道结构体的父结构体.
@@ -226,6 +220,50 @@ pthread_t thread_id;
 int refs; 
     ```
     RedClient在reds_handle_main_link中被创建,并且加入reds的环中.然后MainChannel创建一个MainChannelClient,并且将其赋予RedClient
+- **ClientCbs**
+    ClientCbs:用于处理客户端事件的回调函数,例如连接事件等,被处理RedClient的线程调用
+    ```
+    channel_client_connect_proc connect;
+    channel_client_disconnect_proc disconnect;
+    channel_client_migrate_proc migrate;
+    ```
+- **ChannelCbs**
+    ChannelCbs:用于处理客户端数据流事件的回调函数,被监听数据流事件的线程调用
+    ```
+    channel_configure_socket_proc config_socket;
+    channel_disconnect_proc on_disconnect;
+    channel_send_pipe_item_proc send_item;
+    channel_hold_pipe_item_proc hold_item;
+    channel_release_pipe_item_proc release_item;
+    channel_alloc_msg_recv_buf_proc alloc_recv_buf;
+    channel_release_msg_recv_buf_proc release_recv_buf;
+    channel_handle_migrate_flush_mark_proc handle_migrate_flush_mark;
+    channel_handle_migrate_data_proc handle_migrate_data;
+    channel_handle_migrate_data_get_serial_proc handle_migrate_data_get_serial;
+    ```
+- **OutgoingHandlerInterface**
+
+    OutgoingHandlerInterface:定义处理输出消息的函数接口
+    ```
+    get_outgoing_msg_size_proc get_msg_size;
+    prepare_outgoing_proc prepare;
+    on_outgoing_error_proc on_error;
+    on_outgoing_block_proc on_block;
+    on_outgoing_msg_done_proc on_msg_done;
+    on_output_proc on_output;
+    ```
+- **IncomingHandlerInterface**
+    IncomingHandlerInterface:定义处理输入消息的函数接口
+    ```
+    handle_message_proc handle_message;
+    alloc_msg_recv_buf_proc alloc_msg_buf;
+    on_incoming_error_proc on_error; // recv error or handle_message error
+    release_msg_recv_buf_proc release_msg_buf; // for errors
+    // The following is an optional alternative to handle_message, used if not null
+    spice_parse_channel_func_t parser;
+    handle_parsed_proc handle_parsed;
+    on_input_proc on_input;
+    ```
 
 ### 重要函数
 - **red_channel_create**
@@ -264,6 +302,22 @@ RedChannelClient *red_channel_client_create(int size, RedChannel *channel, RedCl
 
 ## main_channel.h
 
+### 重要的结构体
+- **MainChannel**
+```
+    RedChannel base;
+    uint8_t recv_buf[MAIN_CHANNEL_RECEIVE_BUF_SIZE];
+```
+- **MainChannelClient**
+```
+    RedChannelClient base;
+    uint32_t connection_id;
+    uint32_t ping_id;
+    uint32_t net_test_id;
+    int net_test_stage;
+    uint64_t latency;
+    uint64_t bitrate_per_sec;
+```
 ## inputs_channel.h
 
 
