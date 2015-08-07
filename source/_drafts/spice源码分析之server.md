@@ -320,7 +320,26 @@ RedChannelClient *red_channel_client_create(int size, RedChannel *channel, RedCl
 ```
 ## inputs_channel.h
 
-
+### 重要的结构体
+- **InputsChannel**
+```
+    RedChannel base;
+    uint8_t recv_buf[RECEIVE_BUF_SIZE];
+    VDAgentMouseState mouse_state;
+```
+- **InputsChannelClient**
+```
+    RedChannelClient base;
+    uint16_t motion_count;
+```
+### 静态变量
+```
+static SpiceKbdInstance *keyboard = NULL;
+static SpiceMouseInstance *mouse = NULL;
+static SpiceTabletInstance *tablet = NULL;
+static SpiceTimer *key_modifiers_timer;
+static InputsChannel *g_inputs_channel = NULL;
+```
 
 # dispatcher
 
@@ -362,6 +381,13 @@ void dispatcher_init(Dispatcher *dispatcher, size_t max_message_type,
                              void *payload)
     ```
     获取线程锁,发送消息和payload,如果消息的ack类型是DISPATCHER_ACK,就等待ACK
+
+- **dispatcher_send_message**
+    ```
+void dispatcher_send_message(Dispatcher *dispatcher, uint32_t message_type,
+void *payload)
+    ```
+    写入消息到dispathcher-send_fd,对应的worker在poll触发读事件后调用相应的函数处理消息，再把处理结果写入到worker->channel即(dispathcher->recv_fd),再由调用者使用recevice_data从send_fd读取结果．
     
 ## red_dispatcher.h
 定义了跟QXLWorker和red_dispatcher相关的函数.
@@ -420,6 +446,51 @@ SPICE_GNUC_VISIBLE void spice_qxl_monitors_config_async(QXLInstance *instance, Q
 SPICE_GNUC_VISIBLE void spice_qxl_driver_unload(QXLInstance *instance)
     ```
     实际上是对内部函数的封装,提供给外部调用.
+
+### 处理的消息类型
+```
+    RED_WORKER_MESSAGE_NOP,
+    RED_WORKER_MESSAGE_UPDATE,
+    RED_WORKER_MESSAGE_WAKEUP,
+    RED_WORKER_MESSAGE_OOM,
+    RED_WORKER_MESSAGE_READY,
+    RED_WORKER_MESSAGE_DISPLAY_CONNECT,
+    RED_WORKER_MESSAGE_DISPLAY_DISCONNECT,
+    RED_WORKER_MESSAGE_DISPLAY_MIGRATE,
+    RED_WORKER_MESSAGE_START,
+    RED_WORKER_MESSAGE_STOP,
+    RED_WORKER_MESSAGE_CURSOR_CONNECT,
+    RED_WORKER_MESSAGE_CURSOR_DISCONNECT,
+    RED_WORKER_MESSAGE_CURSOR_MIGRATE,
+    RED_WORKER_MESSAGE_SET_COMPRESSION,
+    RED_WORKER_MESSAGE_SET_STREAMING_VIDEO,
+    RED_WORKER_MESSAGE_SET_MOUSE_MODE,
+    RED_WORKER_MESSAGE_ADD_MEMSLOT,
+    RED_WORKER_MESSAGE_DEL_MEMSLOT,
+    RED_WORKER_MESSAGE_RESET_MEMSLOTS,
+    RED_WORKER_MESSAGE_DESTROY_SURFACES,
+    RED_WORKER_MESSAGE_CREATE_PRIMARY_SURFACE,
+    RED_WORKER_MESSAGE_DESTROY_PRIMARY_SURFACE,
+    RED_WORKER_MESSAGE_RESET_CURSOR,
+    RED_WORKER_MESSAGE_RESET_IMAGE_CACHE,
+    RED_WORKER_MESSAGE_DESTROY_SURFACE_WAIT,
+    RED_WORKER_MESSAGE_LOADVM_COMMANDS,
+    /* async commands */
+    RED_WORKER_MESSAGE_UPDATE_ASYNC,
+    RED_WORKER_MESSAGE_ADD_MEMSLOT_ASYNC,
+    RED_WORKER_MESSAGE_DESTROY_SURFACES_ASYNC,
+    RED_WORKER_MESSAGE_CREATE_PRIMARY_SURFACE_ASYNC,
+    RED_WORKER_MESSAGE_DESTROY_PRIMARY_SURFACE_ASYNC,
+    RED_WORKER_MESSAGE_DESTROY_SURFACE_WAIT_ASYNC,
+    /* suspend/windows resolution change command */
+    RED_WORKER_MESSAGE_FLUSH_SURFACES_ASYNC,
+
+    RED_WORKER_MESSAGE_DISPLAY_CHANNEL_CREATE,
+    RED_WORKER_MESSAGE_CURSOR_CHANNEL_CREATE,
+
+    RED_WORKER_MESSAGE_MONITORS_CONFIG_ASYNC,
+    RED_WORKER_MESSAGE_DRIVER_UNLOAD,
+```
 ## main_dispatcher.h
 
 ### 重要的结构体
