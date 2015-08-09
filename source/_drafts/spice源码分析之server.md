@@ -138,7 +138,7 @@ SPICE_GNUC_VISIBLE void spice_server_set_seamless_migration(SpiceServer *s, int 
 
 ```
 
-## 重要的结构体
+## 重要结构体
 ### SpiceServer
 其实是定义在reds-private.h中的RedsState结构体.
 ```
@@ -163,12 +163,23 @@ uint32_t mm_time_latency;
 ```
 可以看到,RedsState拥有通道环和客户端环
 
+- **RedLinkInfo**
+```
+    RedsStream *stream;
+    SpiceLinkHeader link_header;//协议头部
+    SpiceLinkMess *link_mess;//协议链接信息
+    int mess_pos;
+    TicketInfo tiTicketing;
+    SpiceLinkAuthMechanism auth_mechanism;
+    int skip_auth;
+```
+
 # channels
 Channel是spice服务器与qemu和客户端传输信息的通道.
 ## red_channel.h
 服务器包括了两种Channel,一种是与qemu连接的,一种是与客户端连接.
 
-### 重要的结构体
+### 重要结构体
 - **RedChannel**:所有Channel的父结构体.
     ```
     uint32_t type;
@@ -302,7 +313,7 @@ RedChannelClient *red_channel_client_create(int size, RedChannel *channel, RedCl
 
 ## main_channel.h
 
-### 重要的结构体
+### 重要结构体
 - **MainChannel**
 ```
     RedChannel base;
@@ -320,7 +331,7 @@ RedChannelClient *red_channel_client_create(int size, RedChannel *channel, RedCl
 ```
 ## inputs_channel.h
 
-### 重要的结构体
+### 重要结构体
 - **InputsChannel**
 ```
     RedChannel base;
@@ -345,7 +356,7 @@ static InputsChannel *g_inputs_channel = NULL;
 
 ## dispatcher.h
 
-### 重要的结构体
+### 重要结构体
 
 - **Dispatcher**
 ```
@@ -397,7 +408,7 @@ void *payload)
 - 使用socketpair分发给worker
 - QXL设备使用QXLWorker接口，这个接口在red dispathcher中实现，它把设备调用翻译成消息通过red worker管道传输。这种方式使QXL设备和调度器分开并且逻辑上独立。
 - Reds使用定义在red_dispatcher.h中的接口来使用调度器的功能如调度器初始化，改变图像压缩率，改变视频流状态，鼠标模式设置，额外渲染。
-### 重要的结构体
+### 重要结构体
 - **RedDispatcher**
     ```
     QXLWorker base;
@@ -493,7 +504,7 @@ SPICE_GNUC_VISIBLE void spice_qxl_driver_unload(QXLInstance *instance)
 ```
 ## main_dispatcher.h
 
-### 重要的结构体
+### 重要结构体
 - **MainDispatcher**
     ```
     Dispatcher base;
@@ -525,7 +536,7 @@ void dispatcher_register_handler(Dispatcher *dispatcher, uint32_t message_type,
     - 设置payload
 
 # red_worker.h
-## 重要的结构体
+## 重要结构体
 - **RedWorker**
     ```
     DisplayChannel *display_channel;
@@ -686,7 +697,7 @@ void dispatcher_register_handler(Dispatcher *dispatcher, uint32_t message_type,
 **timer_queue_list**:包括所有处于不同线程中的timer_queue
 每个timer_queue包括两种链接方式,不活跃和活跃timer.即link,active_link
 活跃并且不超时的timer会在poll事件触发之后被执行(spice_timer_queue_cb).
-## 重要的结构体
+## 重要结构体
 - **SpiceTimer**
     ```
     RingItem link;
@@ -700,4 +711,43 @@ void dispatcher_register_handler(Dispatcher *dispatcher, uint32_t message_type,
     int is_active;
     uint32_t ms;//timer有效时间
     uint64_t expiry_time;//超时时间
+    ```
+
+# reds_stream.h
+
+## 重要结构体
+- **RedsStream**
+```
+    int socket;
+    SpiceWatch *watch;
+    /* set it to TRUE if you shutdown the socket. shutdown read doesn't work as accepted -
+       receive may return data afterward. check the flag before calling receive*/
+    int shutdown;
+    RedsStreamPrivate *priv;
+```
+
+- **RedsStreamPrivate**
+```
+    SSL *ssl;//openSSL相关结构体
+    AsyncRead async_read;
+
+    /* life time of info:
+     * allocated when creating RedsStream.
+     * deallocated when main_dispatcher handles the SPICE_CHANNEL_EVENT_DISCONNECTED
+     * event, either from same thread or by call back from main thread. */
+    SpiceChannelEventInfo* info;
+
+    ssize_t (*read)(RedsStream *s, void *buf, size_t nbyte);
+    ssize_t (*write)(RedsStream *s, const void *buf, size_t nbyte);
+    ssize_t (*writev)(RedsStream *s, const struct iovec *iov, int iovcnt);
+```
+- **AsyncRead**
+    异步读
+    ```
+    RedsStream *stream;
+    void *opaque;
+    uint8_t *now;
+    uint8_t *end;
+    AsyncReadDone done;
+    AsyncReadError error;
     ```
