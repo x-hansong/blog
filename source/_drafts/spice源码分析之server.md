@@ -352,6 +352,89 @@ static SpiceTimer *key_modifiers_timer;
 static InputsChannel *g_inputs_channel = NULL;
 ```
 
+## CommonChannel
+- **CommonChannel**
+    DisplayChannel, CursorChannel的父结构体
+    ```
+    RedChannel base; 
+    struct RedWorker *worker;
+    uint8_t recv_buf[CHANNEL_RECEIVE_BUF_SIZE];
+    uint32_t id_alloc; 
+    ```
+- **CommonChannelClient**
+    DisplayChannelClient, CursorChannelClient的父结构体
+    ```
+    RedChannelClient base;
+    uint32_t id;
+    struct RedWorker *worker;
+    int is_low_bandwidth;
+    ```
+- **DisplayChannel**
+    ```
+    CommonChannel common; 
+    int enable_jpeg;
+    int jpeg_quality;
+    int enable_zlib_glz_wrap;
+    int zlib_level;
+    RedCompressBuf *free_compress_bufs;
+    ```
+- **DisplayChannelClient**
+    k
+    ```
+    CommonChannelClient common;
+
+    int expect_init;
+
+    PixmapCache *pixmap_cache;
+    uint32_t pixmap_cache_generation;
+    int pending_pixmaps_sync;
+
+    CacheItem *palette_cache[PALETTE_CACHE_HASH_SIZE];
+    Ring palette_cache_lru;
+    long palette_cache_available;
+    uint32_t palette_cache_items;
+
+    struct {
+        uint32_t stream_outbuf_size;
+        uint8_t *stream_outbuf; // caution stream buffer is also used as compress bufs!!!
+
+        RedCompressBuf *used_compress_bufs;
+
+        FreeList free_list;
+        uint64_t pixmap_cache_items[MAX_DRAWABLE_PIXMAP_CACHE_ITEMS];
+        int num_pixmap_cache_items;
+    } send_data;
+
+    /* global lz encoding entities */
+    GlzSharedDictionary *glz_dict;
+    GlzEncoderContext   *glz;
+    GlzData glz_data;
+
+    Ring glz_drawables;               // all the living lz drawable, ordered by encoding time
+    Ring glz_drawables_inst_to_free;               // list of instances to be freed
+    pthread_mutex_t glz_drawables_inst_to_free_lock;
+
+    uint8_t surface_client_created[NUM_SURFACES];
+    QRegion surface_client_lossy_region[NUM_SURFACES];
+
+    StreamAgent stream_agents[NUM_STREAMS];
+    int use_mjpeg_encoder_rate_control;
+    uint32_t streams_max_latency;
+    uint64_t streams_max_bit_rate;
+    ```
+- **CursorChannel**
+```
+    CommonChannel common; 
+```
+- **CursorChannelClient**
+```
+    CommonChannelClient common;
+
+    CacheItem *cursor_cache[CURSOR_CACHE_HASH_SIZE];
+    Ring cursor_cache_lru;
+    long cursor_cache_available;
+    uint32_t cursor_cache_items;
+```
 # dispatcher
 
 ## dispatcher.h
@@ -501,6 +584,44 @@ SPICE_GNUC_VISIBLE void spice_qxl_driver_unload(QXLInstance *instance)
 
     RED_WORKER_MESSAGE_MONITORS_CONFIG_ASYNC,
     RED_WORKER_MESSAGE_DRIVER_UNLOAD,
+```
+### 消息处理函数
+```
+void handle_dev_update_async(void *opaque, void *payload)
+void handle_dev_update(void *opaque, void *payload)
+void handle_dev_add_memslot(void *opaque, void *payload)
+void handle_dev_del_memslot(void *opaque, void *payload)
+void handle_dev_destroy_surface_wait(void *opaque, void *payload)
+void handle_dev_destroy_surfaces(void *opaque, void *payload)
+void handle_dev_create_primary_surface(void *opaque, void *payload)
+void handle_dev_destroy_primary_surface(void *opaque, void *payload)
+void handle_dev_destroy_primary_surface_async(void *opaque, void *payload)
+void handle_dev_flush_surfaces(void *opaque, void *payload)
+void handle_dev_flush_surfaces_async(void *opaque, void *payload)
+void handle_dev_stop(void *opaque, void *payload)
+void handle_dev_start(void *opaque, void *payload)
+void handle_dev_wakeup(void *opaque, void *payload)
+void handle_dev_oom(void *opaque, void *payload)
+void handle_dev_reset_cursor(void *opaque, void *payload)
+void handle_dev_reset_image_cache(void *opaque, void *payload)
+void handle_dev_destroy_surface_wait_async(void *opaque, void *payload)
+void handle_dev_destroy_surfaces_async(void *opaque, void *payload)
+void handle_dev_create_primary_surface_async(void *opaque, void *payload)
+void handle_dev_display_channel_create(void *opaque, void *payload)
+void handle_dev_display_connect(void *opaque, void *payload)
+void handle_dev_display_disconnect(void *opaque, void *payload)
+void handle_dev_display_migrate(void *opaque, void *payload)
+void handle_dev_cursor_channel_create(void *opaque, void *payload)
+void handle_dev_cursor_connect(void *opaque, void *payload)
+void handle_dev_cursor_disconnect(void *opaque, void *payload)
+void handle_dev_cursor_migrate(void *opaque, void *payload)
+void handle_dev_set_compression(void *opaque, void *payload)
+void handle_dev_set_streaming_video(void *opaque, void *payload)
+void handle_dev_set_mouse_mode(void *opaque, void *payload)
+void handle_dev_add_memslot_async(void *opaque, void *payload)
+void handle_dev_reset_memslots(void *opaque, void *payload)
+void handle_dev_driver_unload(void *opaque, void *payload)
+void handle_dev_loadvm_commands(void *opaque, void *payload)
 ```
 ## main_dispatcher.h
 
