@@ -872,3 +872,48 @@ void dispatcher_register_handler(Dispatcher *dispatcher, uint32_t message_type,
     AsyncReadDone done;
     AsyncReadError error;
     ```
+
+# spicevmc.c
+
+## 重要结构体
+- **SpiceVmcState**
+```
+    RedChannel channel; /* Must be the first item */
+    RedChannelClient *rcc;
+    SpiceCharDeviceState *chardev_st;
+    SpiceCharDeviceInstance *chardev_sin;
+    SpiceVmcPipeItem *pipe_item;
+    SpiceCharDeviceWriteBuffer *recv_from_client_buf;
+    uint8_t port_opened;
+```
+
+## 重要函数
+
+# char_device.h
+
+## 重要结构体
+- **SpiceCharDeviceState**
+```
+    int running;
+    int active; /* has read/write been performed since the device was started */
+    int wait_for_migrate_data;
+    uint32_t refs;
+
+    Ring write_queue;
+    Ring write_bufs_pool;
+    SpiceCharDeviceWriteBuffer *cur_write_buf;
+    uint8_t *cur_write_buf_pos;
+    SpiceTimer *write_to_dev_timer;
+    uint64_t num_self_tokens;
+
+    Ring clients; /* list of SpiceCharDeviceClientState */
+    uint32_t num_clients;
+
+    uint64_t client_tokens_interval; /* frequency of returning tokens to the client */
+    SpiceCharDeviceInstance *sin;
+
+    int during_read_from_device;
+
+    SpiceCharDeviceCallbacks cbs;
+    void *opaque;
+```
