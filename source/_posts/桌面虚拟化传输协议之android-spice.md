@@ -1,7 +1,7 @@
 title: 桌面虚拟化传输协议之android spice
 date: 2015-07-16 12:46:15
 tags: [虚拟化, spice]
-categories: 桌面虚拟化
+categories: 虚拟化
 ---
 
 # 背景
@@ -28,6 +28,8 @@ Spice事实上并没有android版本，但是它有linux版本，而android是�
 Spice服务器通过通道(Channel)来与客户端通信，其中jpeg模块是通过NDK编译好的库，使用JNI调用，把服务器发送过来图像命令转化为图像，再把图像交给android的View显示出来。
 
 在实际使用中，需要对图像的解析过程进行优化，否则显示的延迟很大。一个解决方案是使用更快的jpeg解析库。
+
+最后,推荐一个开源的spice安卓客户端[remote-desktop-clients](https://github.com/iiordanov/remote-desktop-clients)
 
 以上只是对Spice工作原理的简单描述，详细介绍查看官方文档：
 - [spice_for_newbies](http://www.spice-space.org/docs/spice_for_newbies.pdf)
