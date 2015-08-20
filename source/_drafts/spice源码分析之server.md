@@ -12,7 +12,7 @@ _注:下面的分析省略了所有关于迁移功能的函数与变量.只注�
 - **SPICE_GNUC_DEPRECATED**,其定义是`#define SPICE_GNUC_DEPRECATED  __attribute__((__deprecated__))`表示该函数以及被弃用,在编译时会给出警告
 - **SPICE_GNUC_VISIBLE**,其定义是`#define SPICE_GNUC_VISIBLE __attribute__ ((visibility ("default")))`用于控制符号的可见性,设置为对外可见.spice动态链接库默认隐藏对外部的可见性,即外部文件不能调用库里面的函数,有这个声明的函数可以被外部文件调用,即为公共函数.
 
-跟SpiceServer相关的函数在spice.h中定义,在reds.c中被定义,提供给外部调用
+跟SpiceServer相关的函数在spice.h中定义,在reds.c中被实现,提供给外部调用
 ```
 SPICE_GNUC_VISIBLE int spice_server_get_num_clients(SpiceServer *s)
 SPICE_GNUC_VISIBLE int spice_server_add_client(SpiceServer *s, int socket, int skip_auth)
