@@ -6,7 +6,7 @@ categories: 虚拟化
 
 _前言:本文是结合我自己阅读代码的心得总结而来,同时会忽略很多细节,只能作为阅读源码时的参考.如有错误,欢迎指正._
 
-# Spice简介
+## Spice简介
 > Spice是一个开源的云计算解决方案，使客户端能显示远程虚拟主机的操作界面并且使用其设备，如键盘，鼠标，声音等。Spice给用户提供了一种如同操作本地机器一样的体验，同时尽可能把密集的CPU和GPU任务在客户端上执行。Spice能在局域网和互联网间使用，而不减少用户体验。
 {% asset_img 01.png [图0] %}
 
@@ -26,16 +26,16 @@ Spice的相关组件包括:
 也就是说spice服务器处于主机与客户端中间,是整个Spice的核心所在.下面我们开始从代码层面分析spice服务器
 更多资料查看本人翻译的spice新手文档[Spice入门](https://www.gitbook.com/book/xhansong/spice-guidebook),以及[官方网站](http://www.spice-space.org/)
 
-# Spice server
+## Spice server
 {% asset_img 00.png [图1] %}
 图1是spice服务器的核心架构,贯穿整个源码的组织结构.
 值得一提的是,spice server是作为一个库提供给qemu使用的,编译出来就是libspice,所以代码中没有main函数.
 下面我们先了解一个server源码中使用到的一些核心概念,在看源码之前推荐大家先看一遍[Spice入门](https://www.gitbook.com/book/xhansong/spice-guidebook),否则理解代码中的某些核心概念会很吃力.
-## 部分宏定义
+### 部分宏定义
 - **SPICE_GNUC_DEPRECATED**,其定义是`#define SPICE_GNUC_DEPRECATED  __attribute__((__deprecated__))`表示该函数以及被弃用,在编译时会给出警告
 - **SPICE_GNUC_VISIBLE**,其定义是`#define SPICE_GNUC_VISIBLE __attribute__ ((visibility ("default")))`用于控制符号的可见性,设置为对外可见.spice作为动态链接库给qemu使用,默认隐藏函数对外部的可见性,即外部文件不能调用库里面的函数,有这个声明的函数可以被外部文件调用,即为公共函数.
 
-## 公共函数
+### 公共函数
 Server的公共函数主要在两个头文件中:
 - **spice.h**:与SpiceServer结构体相关的函数,是qemu调用spice的主要函数
 - **red_dispatcher.h**:与QXL设备相关的函数
@@ -45,7 +45,7 @@ Server的公共函数主要在两个头文件中:
 - **spice_server_add_interface**:给server注册VDI接口
 - **spice_server_add_client**:处理qemu接收到的客户端连接消息
 
-## VDI接口
+### VDI接口
 从图1中可以看到,VDI接口是spice server离qemu最近的一层,qemu主要是通过VDI接口来与spice交互的.
 VDI接口的定义在spice.h中,结构体内部的函数指针实现都在qemu的源码里面(ui/spice-core.c)
 - **SpiceCoreInterface**:核心接口,用于创建,添加,取消定时和监听事件
@@ -112,7 +112,7 @@ VDI接口的定义在spice.h中,结构体内部的函数指针实现都在qemu�
 - **SpicePlaybackInterface**:声音接口
 - **SpiceRecordInterface**:录音接口
 
-## Channel
+### Channel
 从图1可以看到,VDI接口之后即是Channel(QXLInterface比较特殊,这个后面再说).
 Channel的主要作用是使用对应的TCP连接传输消息给客户端,保证其传输的可靠性,其本质是通道,不同的Channel传输不同的消息.
 
@@ -131,7 +131,7 @@ spice中主要有六种Channel:
 
 六种Channel中只有DisplayChannel和CursorChannel是单独在工作线程工作的,其他都是在qemu线程工作.
 
-## Dispatcher
+### Dispatcher
 {% asset_img 02.png [图3] %}
 前面提到Channel负责传输消息,而Dispatcher则负责处理消息,并且调度Channel.
 Dispatcher使用socketpair来与外界交互,例如监听事件,传输结果等.
@@ -139,11 +139,11 @@ Dispatcher使用socketpair来与外界交互,例如监听事件,传输结果等.
 - **MainDispatcher**:在qemu线程中监听socket事件,处理客户端连接的初始化,建立和断开等,跟MainChannel相关
 - **RedDispatcher**:在worker线程中监听socket事件,处理QXL设备有关的消息,跟DisplayChannel,CursorChannel相关,图3描述的就是RedDispatcher的工作流程.在图1我们看到QXLInterface与其他接口不一样,与Channel的联系中间多了一个RedDispatcher,它们在单独的Worker线程中工作,提供了QEMU与接收的图像命令处理和渲染过程的独立性
 
-## RedWorker
+### RedWorker
 RedWorker可以说是server的核心,80%代码跟它有关,毕竟它负责图像渲染和传输,这是spice最难最复杂的部分,涉及图像的压缩,渲染,局部刷新等核心技术.
 RedWorker在单独线程上工作,通过QXLInterface与QEMU的QXL设备直接交互,同时控制DisplayChannel,CursorChannel,并且拥有自己的poll事件驱动核心.而其他的Channel都依赖于QEMU线程.
 
-# 总结
+## 总结
 - Spice server作为一个库给QEMU调用,用于支持Spice协议.
 - server通过使用VDI接口与QEMU交互
 - server通过使用Channel与客户端交互
