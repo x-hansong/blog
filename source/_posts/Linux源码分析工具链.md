@@ -87,9 +87,9 @@ nmap <C-@>d :cs find d <C-R>=expand("<cword>")<CR><CR>
 
 doxygen是一个根据源代码生成文档的工具,这货虽然主要是给C++用的,但是它也对其他语言有支持.
 安装直接去[官网](http://www.stack.nl/~dimitri/doxygen/index.html),按照其指导安装即可
-下面根据我生成qemu源代码文档的例子,介绍一下doxygen的使用方法.
+下面介绍一下doxygen的使用方法.
 
-首先,在源代码根目录执行`doxygen -g`,然后在根目录就会突然冒出一个名为Doxyfile的文件,这个文件就是doxygen生成文档的配置文件了.
+首先,在源代码根目录执行`doxygen -g`,然后在根目录就会突然冒出一个名为**Doxyfile**的文件,这个文件就是doxygen生成文档的配置文件了.
 那么,重点来了,怎么配置这个文件,默认的配置是根据代码生成各个结构体的成员数据,然后生成html和latex两个文件夹,分别是网页和latex文档.
 说实话,默认生成的文档并没有什么卵用,除了让你更方便的看到各个结构体的组成成员.我们关心的是各个结构体之间的关系,这是针对C而言的.对与C++和java而言,关心的是类之间的关系.所以,默认的配置肯定是要修改的.至于怎么改,看[官方文档](http://www.stack.nl/~dimitri/doxygen/manual/index.html).
 
@@ -120,6 +120,8 @@ doxygen是一个根据源代码生成文档的工具,这货虽然主要是给C++
     ```
     给一个结构体关系图,就是doxygen生成的.
     {% asset_img 00.png [machine_class] %}
+
+最后一步,在源码根目录执行`doxygen`,它会自动找到Doxygen配置,根据配置生成文档.
     
 ## gdb
 最后一个工具,大名鼎鼎的gdb.分析源码执行流程的最好方式的是运行它,然后一步步执行.用来观察它最好的工具当然是gdb了(针对C/C++).
