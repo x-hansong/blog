@@ -120,6 +120,11 @@ doxygen是一个根据源代码生成文档的工具,这货虽然主要是给C++
     ```
     给一个结构体关系图,就是doxygen生成的.
     {% asset_img 00.png [machine_class] %}
+- 关于源码搜索路径,默认是搜索本目录的源代码,大部分情况下源码是分布在各个子目录的.
+    ```
+    RECURSIVE = YES
+    ```
+    默认RECURSIVE是NO,所以记得把它设置为YES,递归搜索子目录. _感谢soglad的留言提醒_
 
 最后一步,在源码根目录执行`doxygen`,它会自动找到Doxygen配置,根据配置生成文档.
     
