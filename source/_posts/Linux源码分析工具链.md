@@ -117,6 +117,12 @@ doxygen是一个根据源代码生成文档的工具,这货虽然主要是给C++
     ```
     HAVE_DOT (一定要置为YES,后面的选项都依赖这个)
     DOT_NUM_THREADS (使用dot绘图的线程数量,越多越快,我一般是设置跟cpu的核数一样)
+    //以下两个选项跟生成函数调用关系图有关
+    CALL_GRAPH
+    CALLER_GRAPH
+    EXTRACT_ALL //把所有实体都输出到文档,不管它是否能被描述
+    EXTRACT_STATIC //把静态变量也输出到文档中
+    EXTRACT_PRIVATE //把私有变量也输出到文档中
     ```
     给一个结构体关系图,就是doxygen生成的.
     {% asset_img 00.png [machine_class] %}
