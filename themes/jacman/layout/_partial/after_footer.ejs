@@ -2,6 +2,7 @@
 <script src="<%- config.root %>js/jquery.imagesloaded.min.js"></script>
 <script src="<%- config.root %>js/gallery.js"></script>
 
+
 <script type="text/javascript">
 $(document).ready(function(){ 
   $('.navbar').click(function(){
@@ -127,9 +128,9 @@ $(document).ready(function(){
   	  <script type="text/javascript">
   		var duoshuo_user_ID = 7607035
   	  </script>
-     
-  	<script src="http://7xjtfr.com1.z0.glb.clouddn.com/ua-parser.min.js"></script>
-  	<script src="http://7xjtfr.com1.z0.glb.clouddn.com/hook-duoshuo.js"></script>
+<script src="<%- config.root %>js/ua-parser.min.js"></script>
+<script src="<%- config.root %>js/hook-duoshuo.js"></script>
+
 <% } %>
 <% if( (config.disqus_shortname || theme.disqus_shortname)) { %>
 <script type="text/javascript">
