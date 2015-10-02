@@ -125,7 +125,7 @@ doxygen是一个根据源代码生成文档的工具,这货虽然主要是给C++
     EXTRACT_PRIVATE //把私有变量也输出到文档中
     ```
     给一个结构体关系图,就是doxygen生成的.
-    {% asset_img 00.png [machine_class] %}
+    ![machine_class](http://7xjtfr.com1.z0.glb.clouddn.com/source_00.png)
 - 关于源码搜索路径,默认是搜索本目录的源代码,大部分情况下源码是分布在各个子目录的.
     ```
     RECURSIVE = YES

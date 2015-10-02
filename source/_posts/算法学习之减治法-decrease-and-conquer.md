@@ -43,7 +43,7 @@ categories: 算法学习
  
 当集合为空之后，检查图中是否还存在任何边，如果存在的话，说明图中至少存在一条环路。不存在的话则返回结果List，此List中的顺序就是对图进行拓扑排序的结果。
 
-{% asset_img 00.png [例子] %}
+[例子](http://7xjtfr.com1.z0.glb.clouddn.com/decreace_00.png)
 
 对上图进行拓扑排序的结果：
 2->8->0->3->7->1->5->6->9->4->11->10->12
@@ -98,7 +98,7 @@ n \* m = n/2 \* m  n为偶数
 n \* m  = (n-1)/2 \* 2m + m  (if n > 1  and m if n = 1) n为奇数
 
 #### 例子
-{% asset_img 01.png [例子] %}
+![例子](http://7xjtfr.com1.z0.glb.clouddn.com/decreace_01.png)
 
 
 ## 减去的规模是可变的
@@ -110,7 +110,7 @@ n \* m  = (n-1)/2 \* 2m + m  (if n > 1  and m if n = 1) n为奇数
 类似与快速排序,只是把key换做数组的下标,通过数的下标作为分割的依据
 
 #### 例子
-{% asset_img 02.png [例子] %}
+![例子](http://7xjtfr.com1.z0.glb.clouddn.com/decreace_02.png)
 
 **参考资料:**
 [减治法（一）](http://www.cnblogs.com/kkgreen/archive/2011/06/17/2083915.html)

@@ -9,7 +9,7 @@ categories: 算法学习
 
 ## 解决问题的流程
 
-{% asset_img 00.png [divide and conquer]%}
+![divide and conquer](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer00.png)
 
 ## 分治法适用情况
 
@@ -40,12 +40,12 @@ categories: 算法学习
 值得一提的是归并排序通过数组的下标分割子问题，即每次都把数组分为两半。
 
 **伪代码如下**
-{% asset_img 01.png [merge_sort]%}
+![merge_sort](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer01.png)
 
-{% asset_img 02.png [merge] %}
+![merge](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer02.png)
 
 **例子**
-{% asset_img 03.png [例子] %}
+![例子](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer03.png)
 
 ### 快速排序
 
@@ -53,13 +53,13 @@ categories: 算法学习
 
 **伪代码如下**
 
-{% asset_img 04.png [quick_sort] %}
+![quick_sort](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer04.png)
 
-{% asset_img 05.jpg [partition] %}
+![partition](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer05.jpg)
 
 **例子**
 
-{% asset_img 06.jpg [例子] %}
+![例子](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer06.jpg)
 
 
 ### 二分搜索
@@ -68,11 +68,11 @@ categories: 算法学习
 
 **伪代码如下**
 
-{% asset_img 07.png [binary_search] %}
+![binary_search](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer07.png)
 
 **例子**
 
-{% asset_img 08.png [例子] %}
+![例子](http://7xjtfr.com1.z0.glb.clouddn.com/divide_and_conquer_divide_and_conquer08.png)
 
 
 ### 大整数乘法

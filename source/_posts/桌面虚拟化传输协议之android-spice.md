@@ -10,11 +10,11 @@ categories: 虚拟化
 目前有两大标准的桌面传输协议，分别是RBP和RDP。
 - RBP有一个简单的架构，即直接把虚拟机的图形数据直接传输给客户端，客户端直接显示图像，有点类似于看网络视频。这样子就对网络的要求较高，高延迟情况下效果很差，但是客户端压力比较小，因此对客户机的性能要求较低，毕竟它只负责显示图像。
 
-{% asset_img 01.png [RBP]%}
+![RBP](http://7xjtfr.com1.z0.glb.clouddn.com/android_spice_01.png)
 
 - RDP稍微复杂一点，使用的是图像局部刷新，它发送事件消息给客户端，提示需要刷新的图像区域并且提供数据，客户端根据消息数据生成图像数据显示出来。因此传输的数据量较少，适合于网络不好情况，但是缺点是客户端需要生成图像数据，对客户机有一定压力。
 
-{% asset_img 02.png [RDP]%}
+![RDP](http://7xjtfr.com1.z0.glb.clouddn.com/android_spice_02.png)
 
 那么对于移动设备来说，很显然，RDP协议更适合移动设备，因为移动设备在3G，4G情况下不可能用耗费大流量的RFB协议，并且延迟比较高。而RDP协议由于传输的数据量较少，对网络条件要求不高。所以，针对于移动平台来说，RDP协议比较合适。
 
@@ -23,7 +23,7 @@ categories: 虚拟化
 # SPICE 协议在android平台的应用
 Spice事实上并没有android版本，但是它有linux版本，而android是基于linux的，所以，我们可以通过使用NDK来交叉编译Spice库到android上使用。也就是说，我们可以通过使用JNI来调用libspice.so（通过NDK交叉编译），从而在android平台上使用Spice。
 
-{% asset_img 04.png [android spice] %}
+![android spice](http://7xjtfr.com1.z0.glb.clouddn.com/android_spice_04.png)
 
 Spice服务器通过通道(Channel)来与客户端通信，其中jpeg模块是通过NDK编译好的库，使用JNI调用，把服务器发送过来图像命令转化为图像，再把图像交给android的View显示出来。
 

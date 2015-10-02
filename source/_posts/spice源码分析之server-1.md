@@ -8,7 +8,7 @@ _前言:本文是结合我自己阅读代码的心得总结而来,同时会忽�
 
 ## Spice简介
 > Spice是一个开源的云计算解决方案，使客户端能显示远程虚拟主机的操作界面并且使用其设备，如键盘，鼠标，声音等。Spice给用户提供了一种如同操作本地机器一样的体验，同时尽可能把密集的CPU和GPU任务在客户端上执行。Spice能在局域网和互联网间使用，而不减少用户体验。
-{% asset_img 01.png [图0] %}
+![图0](http://7xjtfr.com1.z0.glb.clouddn.com/spice_server_01.png)
 
 Spice的基本组成包括:
 - Spice协议
@@ -27,7 +27,7 @@ Spice的相关组件包括:
 更多资料查看本人翻译的spice新手文档[Spice入门](https://www.gitbook.com/book/xhansong/spice-guidebook),以及[官方网站](http://www.spice-space.org/)
 
 ## Spice server
-{% asset_img 00.png [图1] %}
+![图1](http://7xjtfr.com1.z0.glb.clouddn.com/spice_server_00.png)
 图1是spice服务器的核心架构,贯穿整个源码的组织结构.
 值得一提的是,spice server是作为一个库提供给qemu使用的,编译出来就是libspice,所以代码中没有main函数.
 下面我们先了解一个server源码中使用到的一些核心概念,在看源码之前推荐大家先看一遍[Spice入门](https://www.gitbook.com/book/xhansong/spice-guidebook),否则理解代码中的某些核心概念会很吃力.
@@ -132,7 +132,7 @@ spice中主要有六种Channel:
 六种Channel中只有DisplayChannel和CursorChannel是单独在工作线程工作的,其他都是在qemu线程工作.
 
 ### Dispatcher
-{% asset_img 02.png [图3] %}
+![图3](http://7xjtfr.com1.z0.glb.clouddn.com/spice_server_03.png)
 前面提到Channel负责传输消息,而Dispatcher则负责处理消息,并且调度Channel.
 Dispatcher使用socketpair来与外界交互,例如监听事件,传输结果等.
 这里存在两种Dispatcher

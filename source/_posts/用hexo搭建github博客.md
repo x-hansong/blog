@@ -43,7 +43,7 @@ categories: Hexo
 这一步强烈推荐看[Hexo 官方文档](http://hexo.io/zh-cn/docs/index.html),现在很多网上的安装过程是过时的,现在hexo是3.0了.
 请耐心的看完官方文档以下内容
 
-{% asset_img 00.png [官方文档目录]%}
+![官方文档目录](http://7xjtfr.com1.z0.glb.clouddn.com/hexo_00.png)
 
 由于hexo3.0很多功能都插件化了,包括git上传,server功能.
 所以我们要把博客上传到github就需要先装git插件,详细见[部署](http://hexo.io/zh-cn/docs/deployment.html)(切记要根据文档配置config.yml)
