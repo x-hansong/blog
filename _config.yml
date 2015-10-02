@@ -2,7 +2,7 @@
 ## Docs: http://hexo.io/docs/configuration.html
 ## Source: https://github.com/hexojs/hexo/mZ
 # Site
-title: ShareHub 
+title: ShareHub
 subtitle: 悲观的意志,乐观的头脑
 description: 学习总结 思考感悟 知识管理 ShareHub是一个分享计算机学习经验及知识的技术博客
 author: Yonah-潇
@@ -11,7 +11,7 @@ timezone:
 
 # URL
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
-url: https://github.com/x-hansong
+url: http://blog.xiaohansong.com
 root: /
 permalink: :year/:month/:day/:title/
 permalink_defaults:
@@ -77,5 +77,5 @@ stylus:
 ## Docs: http://hexo.io/docs/deployment.html
 deploy:
   type: git
-  repository: git@github.com:x-hansong/x-hansong.github.io.git
-  branch: master
+  repository: git@github.com:x-hansong/blog.git
+  branch: gh-pages
