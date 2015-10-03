@@ -11,5 +11,6 @@ date: 2015-06-16 23:21:42
 
 # Contact Me
 
-Mail: x.hansong.scut@gmail.com
+<x.hansong.scut@gmail.com>
 [My Github](https://github.com/x-hansong)
+[My Wiki](http://wiki.xiaohansong.com)
