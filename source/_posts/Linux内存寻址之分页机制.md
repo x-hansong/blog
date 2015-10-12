@@ -76,6 +76,10 @@ Linux使用了一个适合32位和64位系统的分页机制。
 
 我们虽然讨论的是Linux的分页机制，实际上我们用了大部分篇幅来讨论Intel CPU的分页机制实现。因为Linux的分页机制是建立在硬件基础之上的，不同的平台需要有不同的实现。Linux在软件层面构造的虚拟地址，最终还是要通过MMU转换为物理地址，也就是说，不管Linux的分页机制是怎样实现的，CPU只按照它的分页实现来解读线性地址，所以Linux传给CPU的线性地址必然是满足硬件实现的。例如说：Linux在32位CPU上，它的四级页表结构就会兼容到硬件的两级页表结构。可见，Linux在软件层面上做了一层抽象，用四级页表的方式兼容32位和64位CPU内存寻址的不同硬件实现。
 
+最后分享两篇linux内存寻址的实验文档，结合实例更容易理解。
+[Linux内存地址映射][10]
+[Linux内核在x86_64 CPU中地址映射][11]
+
 *参考资料*
 《深入理解Linux内核》
 《深入分析Linux内核源码》
@@ -89,3 +93,5 @@ Linux使用了一个适合32位和64位系统的分页机制。
   [7]: http://7xjtfr.com1.z0.glb.clouddn.com/image012.gif
   [8]: http://7xjtfr.com1.z0.glb.clouddn.com/image013.gif
   [9]: http://7xjtfr.com1.z0.glb.clouddn.com/four-level.png
+  [10]: http://ilinuxkernel.com/?p=1276
+  [11]: http://ilinuxkernel.com/?p=1303
