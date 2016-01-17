@@ -4,7 +4,7 @@
 
 
 <script type="text/javascript">
-$(document).ready(function(){ 
+$(document).ready(function(){
   $('.navbar').click(function(){
     $('header nav').toggleClass('shownav');
   });
@@ -27,7 +27,7 @@ $(document).ready(function(){
   });
   o.click(function(){
     o.css('display', 'none').removeClass('beforeFadeIn');
-    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');      
+    a.css('display', 'block').removeClass('fadeOut').addClass('fadeIn');
     m.removeClass('moveMain');
   });
   $(window).scroll(function(){
@@ -40,7 +40,7 @@ $(document).ready(function(){
         }
   <% } %>
   $(window).resize(function(){
-    getSize(); 
+    getSize();
     if (myWidth >= 1024) {
       $('header nav').removeClass('shownav');
     }else{
@@ -49,14 +49,14 @@ $(document).ready(function(){
       o.css('display', 'none');
       <% if( is_post()&&(page.toc !== false) && theme.toc.aside){ %>
       $('#toc.toc-aside').css('display', 'none');
-      <% } %>  
+      <% } %>
     }
   });
 });
 </script>
 <% if (is_post()) { %>
 <script type="text/javascript">
-$(document).ready(function(){ 
+$(document).ready(function(){
   var ai = $('.article-content>iframe'),
       ae = $('.article-content>embed'),
       t  = $('#toc'),
@@ -83,7 +83,7 @@ $(document).ready(function(){
 <% } %>
 <% if ((page.layout=='post'||page.layout=='page'||page.layout=='photo')&&!theme.jiathis.enable) { %>
 <script type="text/javascript">
-$(document).ready(function(){ 
+$(document).ready(function(){
   var $this = $('.share'),
       url = $this.attr('data-url'),
       encodedUrl = encodeURIComponent(url),
@@ -108,7 +108,7 @@ $(document).ready(function(){
         $('.qrcode strong').text(' ');
     });
   });
-});     
+});
 </script>
 <% } %>
 
@@ -120,11 +120,11 @@ $(document).ready(function(){
     ds.type = 'text/javascript';ds.async = true;
     ds.src = '//static.duoshuo.com/embed.js';
     ds.charset = 'UTF-8';
-    (document.getElementsByTagName('head')[0] 
+    (document.getElementsByTagName('head')[0]
     || document.getElementsByTagName('body')[0]).appendChild(ds);
   })();
-</script> 
-     
+</script>
+
   	  <script type="text/javascript">
   		var duoshuo_user_ID = 7607035
   	  </script>
@@ -160,7 +160,7 @@ var disqus_shortname = '<%= theme.disqus_shortname %>';
 
 <% if (page.layout=='tags'||page.layout=='categories'){ %>
 <script type="text/javascript">
-$(document).ready(function(){ 
+$(document).ready(function(){
   var list    = $('.archive-title a'),
       box     = $('.all-list-box'),
       first   = $('.archive-title a:first-of-type');
@@ -172,16 +172,16 @@ $(document).ready(function(){
       box.load(listSrc);
       list.removeClass('current');
       $(this).addClass('current');
-     });  
+     });
     });
-  }); 
+  });
 </script>
 <% } %>
 <% if (theme.fancybox){ %>
 <link rel="stylesheet" href="<%- config.root %>fancybox/jquery.fancybox.css" media="screen" type="text/css">
 <script src="<%- config.root %>fancybox/jquery.fancybox.pack.js"></script>
 <script type="text/javascript">
-$(document).ready(function(){ 
+$(document).ready(function(){
   $('.article-content').each(function(i){
     $(this).find('img').each(function(){
       if ($(this).parent().hasClass('fancybox')) return;
@@ -196,7 +196,7 @@ $(document).ready(function(){
   if($.fancybox){
     $('.fancybox').fancybox();
   }
-}); 
+});
 </script>
 <% } %>
 
