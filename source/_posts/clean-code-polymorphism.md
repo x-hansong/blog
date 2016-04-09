@@ -56,7 +56,7 @@ categories: 编程实践
 上面的类根据 `FLAG_i18n_ENABLE` 来执行不同的操作。可能你以前就是这么写代码的，觉得这样写一点问题都没有。那么，我现在问你，怎么测试上面的类？
 
 下面我们来看看一般的测试方法。
-    
+
     void testExecuteDoA() {
         FLAG_i18n_ENABLE = true;
         Update u = new Update();
@@ -82,7 +82,7 @@ categories: 编程实践
 我们可以分为两步来操作：
 
 - 让 `Update` 成为抽象类，方法也抽象。
-- 在子类中的重载方法实现条件语句的分支操作。
+- 在子类中的覆盖方法实现条件语句的分支操作。
 
 代码如下
 
@@ -90,7 +90,7 @@ categories: 编程实践
         abstract execute();
         abstract render();
     }
-    
+
     class I18NUpdate extends Update {
         execute() {
             //Do A;
@@ -99,7 +99,7 @@ categories: 编程实践
             //render A;
         }
     }
-    
+
     class NonI18NUpdate extends Update {
         execute() {
             //Do B;
@@ -108,7 +108,7 @@ categories: 编程实践
             //render B;
         }
     }
-    
+
 测试方法：
 
     void testExecuteDoA() {
@@ -145,7 +145,7 @@ categories: 编程实践
     class Consumer {
         Cosumer(Update u) {...}
     }
-    
+
     class Factory {
         Consumer build() {
             Update u = FLAG_i18n_ENABLE
@@ -170,7 +170,7 @@ categories: 编程实践
 - 同样的条件语句在多个地方出现的时候。
 
 最后，我只说一句：该用条件语句的时候不要强行用多态。
-    
+
 *参考资料*
 [多态和条件语句][2]
 

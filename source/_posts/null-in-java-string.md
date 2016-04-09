@@ -1,4 +1,4 @@
-title: Java String 对 null 对象的巧妙处理
+title: Java String 对 null 对象的容错处理
 date: 2016-03-13 17:10:24
 tags: [null, java, String]
 categories: java
@@ -147,8 +147,8 @@ null 对象与字符串拼接会得到什么结果？
 现在我们恍然大悟，`append`函数如果判断对象为 null，就会调用`appendNull`，填充`"null"`。
 
 ## 总结
-上面我们讨论了三个问题，由此引出 Java 中 String 对 null 对象的巧妙处理。上面的例子没有覆盖所有的处理情况，算是抛砖引玉。
+上面我们讨论了三个问题，由此引出 Java 中 String 对 null 对象的容错处理。上面的例子没有覆盖所有的处理情况，算是抛砖引玉。
 
-如何让程序中的 null 对象在我们的控制之中，这是我们从优秀源代码中需要学到的东西。
+如何让程序中的 null 对象在我们的控制之中，是我们编程的时候需要时刻注意的事情。
 
   [1]: http://droidyue.com/blog/2014/08/30/java-details-string-concatenation/
