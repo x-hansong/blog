@@ -1,7 +1,7 @@
 title: 三言两语：SQL 连接（join）
 date: 2016-04-14 21:52:59
-tags:
-categories:
+tags: [MySQL, join]
+categories: 数据库
 ---
 
 ## 前言

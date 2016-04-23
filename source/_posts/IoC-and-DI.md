@@ -1,7 +1,7 @@
 title: 控制反转（IoC）与依赖注入（DI）
 date: 2015-10-21 21:39:57
 tags: [IoC, DI, java]
-categories: java
+categories: Java
 ---
 
 ## 前言
@@ -26,7 +26,7 @@ categories: java
 
 1. 软件系统在没有引入IOC容器之前，如图1所示，对象A依赖于对象B，那么对象A在初始化或者运行到某一点的时候，自己必须主动去创建对象B或者使用已经创建的对象B。无论是创建还是使用对象B，控制权都在自己手上。
 2. 软件系统在引入IOC容器之后，这种情形就完全改变了，如图2所示，由于IOC容器的加入，对象A与对象B之间失去了直接联系，所以，当对象A运行到需要对象B的时候，IOC容器会主动创建一个对象B注入到对象A需要的地方。
-    
+
 通过前后的对比，我们不难看出来：对象A获得依赖对象B的过程,由主动行为变为了被动行为，控制权颠倒过来了，这就是“控制反转”这个名称的由来。
 
 控制反转不只是软件工程的理论，在生活中我们也有用到这种思想。再举一个现实生活的例子：
@@ -55,7 +55,7 @@ categories: java
 
 ### 依赖注入
 上面将依赖在构造函数中直接初始化是一种 Hard init 方式，弊端在于两个类不够独立，不方便测试。我们还有另外一种 Init 方式，如下：
-    
+
     public class Human {
         ...
         Father father;
@@ -86,7 +86,7 @@ IoC框架使用依赖注入作为实现控制反转的方式，但是控制反�
         public void setFinder(MovieFinder finder) {
             this.finder = finder;
         }
-    
+
     class ColonMovieFinder...
         public void setFilename(String filename) {
             this.filename = filename;
