@@ -1,6 +1,6 @@
 title: 访问 NULL 指针错误背后的原理
 date: 2016-02-18 22:50:43
-tags: [Linux, null]
+tags: [Linux]
 categories: Linux内核
 ---
 
