@@ -1,4 +1,4 @@
-title: Linux源代码分析工具链
+title: Linux 平台下阅读源码的工具
 date: 2015-08-24 10:02:11
 tags: [Linux, 源代码分析]
 categories: Linux工具
@@ -133,7 +133,7 @@ doxygen是一个根据源代码生成文档的工具,这货虽然主要是给C++
     默认RECURSIVE是NO,所以记得把它设置为YES,递归搜索子目录. _感谢soglad的留言提醒_
 
 最后一步,在源码根目录执行`doxygen`,它会自动找到Doxygen配置,根据配置生成文档.
-    
+
 ## gdb
 最后一个工具,大名鼎鼎的gdb.分析源码执行流程的最好方式的是运行它,然后一步步执行.用来观察它最好的工具当然是gdb了(针对C/C++).
 gdb的使用我也不打算造轮子,直接参考[用GDB调试程序](http://wiki.ubuntu.org.cn/index.php?title=%E7%94%A8GDB%E8%B0%83%E8%AF%95%E7%A8%8B%E5%BA%8F&variant=zh-hans),这篇写的很好,通俗易懂.
