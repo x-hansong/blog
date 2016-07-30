@@ -1,6 +1,6 @@
 title: 用hexo搭建github博客
 date: 2015-06-17 10:14:18
-tags: [hexo, github] 
+tags: [hexo, github]
 categories: Linux工具
 ---
 
@@ -65,16 +65,16 @@ categories: Linux工具
 ### 用hexo写作github博客的流程
 **注意:hexo是用markdown来写作的,以下命令都是博客所在目录执行**
 
-1. hexo new "title" 
+1. hexo new "title"
     新建一篇文章,然后编辑相应的md文件
     具体使用查看[写作](http://hexo.io/zh-cn/docs/writing.html)
-2. hexo clean 
+2. hexo clean
     清除缓存
 3. hexo generate
     根据写作的内容和配置生成网页
     生成文章在public文件夹中,上传到github的就是里面的内容
     具体使用查看[生成器](http://hexo.io/zh-cn/docs/generating.html)
-4. hexo deploy 
+4. hexo deploy
     上传到github
     具体使用查看[部署](http://hexo.io/zh-cn/docs/deployment.html)
 5. 访问username.github.io查看内容

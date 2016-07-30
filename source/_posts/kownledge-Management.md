@@ -2,6 +2,7 @@ title: 程序员的知识管理
 date: 2016-01-16 13:01:51
 tags: 知识管理
 categories: 个人随想
+top: true
 ---
 
 ## 前言
