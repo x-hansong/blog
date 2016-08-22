@@ -25,11 +25,11 @@ categories: Java
 
 但是这些被动的预防措施并不能保证不会内存泄漏：
 
-- 使用线程池的时候，这个线程执行任务结束，`ThreadLocal`对象被回收了，线程放回线程池中不销毁，这个线程一直不被使用，导致内存泄漏。
-- 分配使用了`ThreadLocal`又不再调用`get()`,`set()`,`remove()`方法，那么这个期间就会发生内存泄漏。
+- 使用`static`的`ThreadLocal`，延长了`ThreadLocal`的生命周期，可能导致的内存泄漏（参考[ThreadLocal 内存泄露的实例分析][2]）。
+- 分配使用了`ThreadLocal`又不再调用`get()`,`set()`,`remove()`方法，那么就会导致内存泄漏。
 
 ### 为什么使用弱引用
-从表面上看内存泄漏的根源在于使用了弱引用。网上的文章大多着重分析为什么会内存泄漏，但是另一个问题也同样值得思考：为什么使用弱引用？为什么不用强引用？
+从表面上看内存泄漏的根源在于使用了弱引用。网上的文章大多着重分析`ThreadLocal`使用了弱引用会导致内存泄漏，但是另一个问题也同样值得思考：为什么使用弱引用而不是强引用？
 
 我们先来看看官方文档的说法：
 
@@ -39,7 +39,7 @@ categories: Java
 下面我们分两种情况讨论：
 
 - **key 使用强引用**：引用的`ThreadLocal`的对象被回收了，但是`ThreadLocalMap`还持有`ThreadLocal`的强引用，如果没有手动删除，`ThreadLocal`不会被回收，导致`Entry`内存泄漏。
-- **key 使用弱引用**：引用的`ThreadLocal`的对象被回收了，由于`ThreadLocalMap`持有`ThreadLocal`的弱引用，即使没有手动删除，`ThreadLocal`也会被回收。`value`在下一次`ThreadLocalMap`调用`set`,`get`的时候会被清除。
+- **key 使用弱引用**：引用的`ThreadLocal`的对象被回收了，由于`ThreadLocalMap`持有`ThreadLocal`的弱引用，即使没有手动删除，`ThreadLocal`也会被回收。`value`在下一次`ThreadLocalMap`调用`set`,`get`，`remove`的时候会被清除。
 
 比较两种情况，我们可以发现：由于`ThreadLocalMap`的生命周期跟`Thread`一样长，如果都没有手动删除对应`key`，都会导致内存泄漏，但是使用弱引用可以多一层保障：**弱引用`ThreadLocal`不会内存泄漏，对应的`value`在下一次`ThreadLocalMap`调用`set`,`get`,`remove`的时候会被清除**。
 
@@ -51,5 +51,12 @@ categories: Java
 
 在使用线程池的情况下，没有及时清理`ThreadLocal`，不仅是内存泄漏的问题，更严重的是可能导致业务逻辑出现问题。所以，使用`ThreadLocal`就跟加锁完要解锁一样，用完就清理。
 
+_参考文章_
+[Java并发包学习七 解密ThreadLocal][3]
+[ThreadLocal可能引起的内存泄露][4]
+
+
   [1]: http://7xjtfr.com1.z0.glb.clouddn.com/threadlocal.jpg
-  [2]: https://wiki.apache.org/tomcat/MemoryLeakProtection
+  [2]: http://blog.xiaohansong.com/2016/08/09/ThreadLocal-leak-analyze/
+  [3]: http://qifuguang.me/2015/09/02/%5BJava%E5%B9%B6%E5%8F%91%E5%8C%85%E5%AD%A6%E4%B9%A0%E4%B8%83%5D%E8%A7%A3%E5%AF%86ThreadLocal/
+  [4]: http://www.cnblogs.com/onlywujun/p/3524675.html

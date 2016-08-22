@@ -15,13 +15,13 @@ categories: Java
 
 1. RUNNING：接收新任务，并且处理任务队列中的任务
 2. SHUTDOWN：不接收新任务，但是处理任务队列的任务
-3. STOP：不接收新任务，不出来任务队列，同时中断所有进行中的任务
+3. STOP：不接收新任务，不处理任务队列，同时中断所有进行中的任务
 4. TIDYING：所有任务已经被终止，工作线程数量为 0，到达该状态会执行`terminated()`
 5. TERMINATED：`terminated()`执行完毕
 
 ![状态转换图][1]
 `ThreadPoolExecutor`中用原子类来表示状态位
-    
+
     private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
 
 ## 线程池模型
@@ -45,7 +45,7 @@ categories: Java
 
 1. 当前线程数量 < `corePoolSize`，直接开启新的核心线程执行任务`addWorker(command, true)`
 2. 当前线程数量 >= `corePoolSize`，且任务加入工作队列成功
-        
+
     1. 检查线程池当前状态是否处于`RUNNING`
     2. 如果否，则拒绝该任务
     3. 如果是，判断当前线程数量是否为 0，如果为 0，就增加一个工作线程。
@@ -71,7 +71,7 @@ categories: Java
 
     private final ReentrantLock mainLock = new ReentrantLock();
     private final HashSet<Worker> workers = new HashSet<Worker>();
-    
+
 ### 核心函数 runWorker
 下面是简化的逻辑，注意：每个工作线程的`run`都执行下面的函数
 
@@ -88,7 +88,7 @@ categories: Java
         }
         processWorkerExit(w, completedAbruptly);
     }
-    
+
 1. 从`getTask()`中获取任务
 2. 锁住 worker
 3. 执行`beforeExecute(wt, task)`，这是`ThreadPoolExecutor`提供给子类的扩展方法
@@ -101,7 +101,7 @@ categories: Java
 线程池内部的任务队列是一个阻塞队列，具体实现在构造时传入。
 
     private final BlockingQueue<Runnable> workQueue;
-    
+
 `getTask()`从任务队列中获取任务，支持阻塞和超时等待任务，四种情况会导致返回`null`，让`worker`关闭。
 
 1. 现有的线程数量超过最大线程数量
@@ -115,7 +115,7 @@ categories: Java
     Runnable r = timed ?
         workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) :
         workQueue.take();
-        
+
 在以下两种情况下等待任务会超时：
 
 1. 允许核心线程等待超时，即`allowCoreThreadTimeOut(true)`
