@@ -1,7 +1,7 @@
 title: ZooKeeper Watcher 和 AsyncCallback 的区别与实现
 date: 2016-08-22 22:15:08
-tags:
-categories:
+tags: [Zookeeper]
+categories: Zookeeper
 ---
 
 ## 前言
