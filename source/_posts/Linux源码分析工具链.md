@@ -1,7 +1,7 @@
 title: Linux 平台下阅读源码的工具
 date: 2015-08-24 10:02:11
 tags: [Linux, 源代码分析]
-categories: Linux工具
+categories: Linux
 ---
 
 ## 前言

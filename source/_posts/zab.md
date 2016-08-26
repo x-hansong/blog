@@ -1,6 +1,6 @@
 title: Zookeeper ZAB 协议分析
 date: 2016-08-25 23:53:11
-tags: [Zookeeper,ZAB]
+tags: [Zookeeper,ZAB,分布式]
 categories: Zookeeper
 ---
 

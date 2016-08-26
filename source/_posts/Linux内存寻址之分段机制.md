@@ -1,7 +1,7 @@
 title: Linux内存寻址之分段机制
 date: 2015-10-03 13:56:31
 tags: [Linux]
-categories: Linux内核
+categories: Linux
 ---
 
 ## 前言

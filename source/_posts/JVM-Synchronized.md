@@ -1,6 +1,6 @@
 title: 【译】JVM 进行线程同步背后的原理
 date: 2016-04-23 10:50:37
-tags: [synchronized]
+tags: [synchronized,并发]
 categories: Java
 ---
 

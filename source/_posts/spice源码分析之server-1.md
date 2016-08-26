@@ -1,7 +1,7 @@
 title: spice源码分析之server(1)
 date: 2015-08-19 15:36:41
 tags: spice
-categories: 虚拟化
+categories:
 ---
 
 _前言:本文是结合我自己阅读代码的心得总结而来,同时会忽略很多细节,只能作为阅读源码时的参考.如有错误,欢迎指正._

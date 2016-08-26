@@ -1,7 +1,7 @@
 title: 算法学习之分治法(divide and conquer)
 date: 2015-06-18 18:50:50
 tags: [分治法,算法]
-categories: 算法学习
+categories: 算法
 ---
 
 ## 什么是分治法
@@ -85,7 +85,7 @@ a = a_{1} * 10^{(n_{1}/2)} + a_{0}
 $n_{1}$为$a$的位数
 
 {% math_block %}
-b = b_{1} * 10^{(n_{2}/2)} + b_{0}　　　　　  
+b = b_{1} * 10^{(n_{2}/2)} + b_{0}　　　　　
 {% endmath_block %}
 $n_{2}$为$b$的位数
 

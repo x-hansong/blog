@@ -1,7 +1,7 @@
 title: 桌面虚拟化传输协议之android spice
 date: 2015-07-16 12:46:15
 tags: [虚拟化, spice]
-categories: 虚拟化
+categories:
 ---
 
 # 背景

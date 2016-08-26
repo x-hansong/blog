@@ -1,7 +1,7 @@
 title: Linux内存寻址之分页机制
 date: 2015-10-05 12:51:06
 tags: [Linux]
-categories: Linux内核
+categories: Linux
 ---
 
 在上一篇文章[Linux内存寻址之分段机制][1]中，我们了解逻辑地址通过分段机制转换为线性地址的过程。下面，我们就来看看更加重要和复杂的分页机制。

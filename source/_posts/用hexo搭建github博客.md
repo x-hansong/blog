@@ -1,7 +1,7 @@
 title: 用hexo搭建github博客
 date: 2015-06-17 10:14:18
 tags: [hexo, github]
-categories: Linux工具
+categories:
 ---
 
 ## 背景

@@ -1,6 +1,6 @@
 title: ZooKeeper Watcher 和 AsyncCallback 的区别与实现
 date: 2016-08-22 22:15:08
-tags: [Zookeeper]
+tags: [Zookeeper,分布式]
 categories: Zookeeper
 ---
 
@@ -31,7 +31,13 @@ categories: Zookeeper
 - `AsyncCallback`:`AsyncCallback`是在以异步方式使用 ZooKeeper API 时，用于处理返回结果的。例如：`getData`同步调用的版本是：`byte[] getData(String path, boolean watch,Stat stat)`，异步调用的版本是：`void getData(String path,Watcher watcher,AsyncCallback.DataCallback cb,Object ctx)`，可以看到，前者是直接返回获取的结果，后者是通过`AsyncCallback`回调处理结果的。
 
 ## Watcher
-Watcher 主要是通过`ClientWatchManager`进行管理的。
+Watcher 主要是通过`ClientWatchManager`进行管理的。下面是 Watcher 相关类图
+
+![WatcherClass][1]
+
+添加 Watcher 的流程如下：
+
+![添加Watcher][2]
 ### Watcher 的类型
 `ClientWatchManager`中有四种`Watcher`
 
@@ -110,7 +116,7 @@ Watcher 主要是通过`ClientWatchManager`进行管理的。
 ## AsyncCallback
 Zookeeper 的`exists`,`getData`,`getChildren`方法都有异步的版本，它们与同步方法的区别仅仅在于是否等待响应，底层发送都是通过`sendThread`异步发送的。下面我们用一幅图来说明：
 
-![][1]
+![][3]
 上面的图展示了同步/异步调用`getData`的流程，其他方法也是类似的。
 
 ## IO 与事件处理
@@ -119,7 +125,7 @@ Zookeeper 客户端会启动两个常驻线程
 - `SendThread`：负责 IO 操作，包括发送，接受响应，发送 ping 等。
 - `EventThread`：负责处理事件，执行回调函数。
 
-![][2]
+![][4]
 ### readResponse
 `readResponse`是`SendThread`处理响应的核心函数，核心逻辑如下：
 
@@ -141,11 +147,13 @@ Zookeeper 客户端会启动两个常驻线程
 Zookeeper 客户端中`Watcher`和`AsyncCallback`都是异步回调的方式，但它们回调的时机是不一样的，前者是由服务器发送事件触发客户端回调，后者是在执行了请求后得到响应后客户端主动触发的。它们的共同点在于都需要在获取了服务器响应之后，由`SendThread`写入`EventThread`的`waitingEvents`中，然后由`EventThread`逐个从事件队列中获取并处理。
 
 *参考资料*
-[ZooKeeper个人笔记客户端watcher和AsycCallback回调][3]
-[【ZooKeeper Notes 13】ZooKeeper Watcher的事件通知类型][4]
+[ZooKeeper个人笔记客户端watcher和AsycCallback回调][5]
+[【ZooKeeper Notes 13】ZooKeeper Watcher的事件通知类型][6]
 
 
-  [1]: http://7xjtfr.com1.z0.glb.clouddn.com/async.png
-  [2]: http://7xjtfr.com1.z0.glb.clouddn.com/event.png
-  [3]: http://www.cnblogs.com/francisYoung/p/5225703.html
-  [4]: http://nileader.blog.51cto.com/1381108/954670
+  [1]: http://7xjtfr.com1.z0.glb.clouddn.com/WatcherClass.png
+  [2]: http://7xjtfr.com1.z0.glb.clouddn.com/regist_watch.png
+  [3]: http://7xjtfr.com1.z0.glb.clouddn.com/async.png
+  [4]: http://7xjtfr.com1.z0.glb.clouddn.com/event.png
+  [5]: http://www.cnblogs.com/francisYoung/p/5225703.html
+  [6]: http://nileader.blog.51cto.com/1381108/954670

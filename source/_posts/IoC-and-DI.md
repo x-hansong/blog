@@ -1,6 +1,6 @@
 title: 控制反转（IoC）与依赖注入（DI）
 date: 2015-10-21 21:39:57
-tags: [IoC, DI, java]
+tags: [IoC, DI, Java]
 categories: Java
 ---
 
