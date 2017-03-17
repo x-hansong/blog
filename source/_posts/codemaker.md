@@ -1,7 +1,7 @@
 title: IDEA代码生成插件CodeMaker
 date: 2017-02-03 20:11:34
 tags: [idea-plugin]
-categories:
+categories: 编程实践
 ---
 
 ## 前言
