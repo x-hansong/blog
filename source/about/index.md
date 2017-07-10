@@ -21,4 +21,4 @@ date: 2015-06-16 23:21:42
 - [Getty(Java NIO Framework)](https://github.com/x-hansong/Getty)
 
 # 工作经历
-- **支付宝**：Java 研发工程师（实习）
+- **支付宝**：Java 开发工程师（至今）

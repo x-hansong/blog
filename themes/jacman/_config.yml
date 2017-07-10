@@ -50,7 +50,7 @@ creative_commons: none
 #### Author information
 author:
   intro_line1:  "Hello ,I'm XiaoHanSong."    ## your introduction on the bottom of the page
-  intro_line2:  "This is my blog for sharing my ideas."  ## the 2nd line
+  intro_line2:  "This is my blog to share my ideas."  ## the 2nd line
   weibo:      ## e.g. wuchong1014 or 2176287895 for http://weibo.com/2176287895
   weibo_verifier:  ## e.g. b3593ceb Your weibo-show widget verifier ,if you use weibo-show it is needed.
   tsina:      ## e.g. 2176287895  Your weibo ID,It will be used in share button.
@@ -80,7 +80,7 @@ links:
 
 #### Comment
 duoshuo_shortname:    ## e.g. wuchong   your duoshuo short name.
-disqus_shortname:     ## e.g. wuchong   your disqus short name.
+disqus_shortname: hansong    ## e.g. wuchong   your disqus short name.
 
 #### Share button
 jiathis:
