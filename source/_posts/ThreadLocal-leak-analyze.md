@@ -81,13 +81,13 @@ categories: Java
 注意上面这句话，`WebappClassLoader`如果泄漏了，意味着它加载的类都无法被卸载，这就解释了为什么上面的代码会导致 PermGen `OutOfMemoryException`。
 
 关键点看下面这幅图
-![][3]
+{% asset_img 111825528931093.png %}
 
 我们可以发现：类加载器对象跟它加载的 Class 对象是双向关联的。这意味着，Class 对象可能就是强引用`WebappClassLoader`，导致它泄漏的元凶。
 
 ### 引用关系图
 理解类加载器与类的生命周期的关系之后，我们可以开始画引用关系图了。（图中的`LeakingServlet.class`与`myThreadLocal`引用画的不严谨，主要是想表达`myThreadLocal`是类变量的意思）
-![leak_1][4]
+{% asset_img leak_1.png %}
 
 下面，我们根据上面的图来分析`WebappClassLoader`泄漏的原因。
 
@@ -148,7 +148,7 @@ categories: Java
     }
 
 ### 提示
-![leak_2][6]
+{% asset_img leak_1.png %}
 
 **欢迎大家批评指正，留言交流。**
 

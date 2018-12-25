@@ -20,23 +20,23 @@ categories: 编程实践
 
     class X {
         X() {...}
-        
+
         public int doSomething() {...}
     }
-    
+
     int a = new X().doSomething()
     int b = new X().doSomething()
-    
+
 现在问题来了，`a` 等于 `b` 吗？事实上有两种可能的情况。
 
 第一种情况：`X` 类不受全局状态的影响，此时 `a == b`
 
-![a==b][3]
+{% asset_img global_state1.png %}
 当 `X` 被实例化时，它可能会同时创建多个其它对象，当它执行 `doSomething()` 的时候，得到的结果是一样。说明它是无状态的，每次执行都像 `1+1=2` 一样有一个确定的值。
 
 第二种情况：`X` 类受到全局状态的影响，此时 `a != b`
 
-![a!=b][4]
+{% asset_img global_state2.png %}
 如果 `X` 在执行 `doSomething()` 的时候，其中的 `Z` 变量受到全局状态 `GS` 的影响，此时 `a==b` 可能就不成立了。因为程序的执行依赖全局状态，同样的方法可能会得到不同的结果。
 
 ### 全局状态的缺点
@@ -69,7 +69,7 @@ categories: 编程实践
         private Object state2;
         private Object state3;
         private AppSetting() {...}
-        
+
         public static AppSetting getInstance() {
             return instance;
         }
@@ -81,7 +81,7 @@ categories: 编程实践
             return AppSetting.getInstance().doX();
         }
     }
-    
+
     void testApp {
         ???
     }
@@ -107,12 +107,12 @@ categories: 编程实践
         App(AppSetting settings) {
             this.settings = settings;
         }
-        
+
         int method() {
             return settings.doX();
         }
     }
-    
+
     void testApp() {
          new App(new AppSetting(...)).method();
     }

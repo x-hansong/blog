@@ -12,7 +12,8 @@ categories: Java
 - `ThreadLocal` 最佳实践
 
 ## ThreadLocal 实现原理
-![ThreadLocal][1]
+{% asset_img threadlocal.jpg %}
+
 `ThreadLocal`的实现是这样的：每个`Thread` 维护一个 `ThreadLocalMap` 映射表，这个映射表的 `key` 是 `ThreadLocal` 实例本身，`value` 是真正需要存储的 `Object`。
 
 也就是说 `ThreadLocal` 本身并不存储值，它只是作为一个 `key` 来让线程从 `ThreadLocalMap` 获取 `value`。值得注意的是图中的虚线，表示 `ThreadLocalMap` 是使用 `ThreadLocal` 的弱引用作为 `Key` 的，弱引用的对象在 GC 时会被回收。

@@ -52,15 +52,16 @@ ZAB 中的节点有三种状态
 
 #### Phase 1: Discovery（发现阶段）
 在这个阶段，followers 跟准 leader 进行通信，同步 followers 最近接收的事务提议。这个一阶段的主要目的是发现当前大多数节点接收的最新提议，并且准 leader 生成新的 epoch，让 followers 接受，更新它们的 acceptedEpoch
-![phase 1][1]
+{% asset_img phase1.png %}
+
 一个 follower 只会连接一个 leader，如果有一个节点 f 认为另一个 follower p 是 leader，f 在尝试连接 p 时会被拒绝，f 被拒绝之后，就会进入 Phase 0。
 
 #### Phase 2: Synchronization（同步阶段）
 同步阶段主要是利用 leader 前一阶段获得的最新提议历史，同步集群中所有的副本。只有当 quorum 都同步完成，准 leader 才会成为真正的 leader。follower 只会接收 zxid 比自己的 lastZxid 大的提议。
-![phase 2][2]
+{% asset_img phase2.png %}
 #### Phase 3: Broadcast（广播阶段）
 到了这个阶段，Zookeeper 集群才能正式对外提供事务服务，并且 leader 可以进行消息广播。同时如果有新的节点加入，还需要对新节点进行同步。
-![phase 3][3]
+{% asset_img phase3.png %}
 值得注意的是，ZAB 提交事务并不像 2PC 一样需要全部 follower 都 ACK，只需要得到 quorum （超过半数的节点）的 ACK 就可以了。
 
 
@@ -81,7 +82,7 @@ ZAB 中的节点有三种状态
 
 节点在选举开始都默认投票给自己，当接收其他节点的选票时，会根据上面的条件更改自己的选票并重新发送选票给其他节点，当有一个节点的得票超过半数，该节点会设置自己的状态为 leading，其他节点会设置自己的状态为 following。
 #### 选举过程
-![FLE][4]
+{% asset_img FLE.png %}
 
 ### Recovery Phase  （恢复阶段）
 这一阶段 follower 发送它们的 lastZixd 给 leader，leader 根据 lastZixd 决定如何同步数据。这里的实现跟前面 Phase 2 有所不同：Follower 收到 TRUNC 指令会中止 L.lastCommittedZxid 之后的提议，收到 DIFF 指令会接收新的提议。
@@ -89,7 +90,7 @@ ZAB 中的节点有三种状态
 > history.lastCommittedZxid：最近被提交的提议的 zxid
 history:oldThreshold：被认为已经太旧的已提交提议的 zxid
 
-![Recovery Phase][5]
+{% asset_img recovery.png %}
 
 ## 总结
 经过上面的分析，我们可以来回答开始提到的两个问题
