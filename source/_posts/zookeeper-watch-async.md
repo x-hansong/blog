@@ -33,11 +33,11 @@ categories: Zookeeper
 ## Watcher
 Watcher 主要是通过`ClientWatchManager`进行管理的。下面是 Watcher 相关类图
 
-{% asset_img WatcherClass.png %}
+![WatcherClass][1]
 
 添加 Watcher 的流程如下：
-{% asset_img regist_watch.png %}
 
+![添加Watcher][2]
 ### Watcher 的类型
 `ClientWatchManager`中有四种`Watcher`
 
@@ -116,8 +116,7 @@ Watcher 主要是通过`ClientWatchManager`进行管理的。下面是 Watcher �
 ## AsyncCallback
 Zookeeper 的`exists`,`getData`,`getChildren`方法都有异步的版本，它们与同步方法的区别仅仅在于是否等待响应，底层发送都是通过`sendThread`异步发送的。下面我们用一幅图来说明：
 
-{% asset_img async.png %}
-
+![][3]
 上面的图展示了同步/异步调用`getData`的流程，其他方法也是类似的。
 
 ## IO 与事件处理
@@ -126,7 +125,7 @@ Zookeeper 客户端会启动两个常驻线程
 - `SendThread`：负责 IO 操作，包括发送，接受响应，发送 ping 等。
 - `EventThread`：负责处理事件，执行回调函数。
 
-{% asset_img event.png %}
+![][4]
 ### readResponse
 `readResponse`是`SendThread`处理响应的核心函数，核心逻辑如下：
 
