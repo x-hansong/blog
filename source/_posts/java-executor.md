@@ -19,7 +19,7 @@ categories: Java
 4. TIDYING：所有任务已经被终止，工作线程数量为 0，到达该状态会执行`terminated()`
 5. TERMINATED：`terminated()`执行完毕
 
-{% asset_img executor_lifecycle.png %}
+![状态转换图][1]
 `ThreadPoolExecutor`中用原子类来表示状态位
 
     private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
