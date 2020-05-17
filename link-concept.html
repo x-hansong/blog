@@ -1,0 +1,600 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  理解链接之链接的基本概念 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">理解链接之链接的基本概念</h1>
+				<p class="meta"><time datetime="2015-07-19T16:14:23+08:00" pubdate data-updated="true">2015/7/19</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h1 id="toc_0">前言</h1>
+
+<p>我们知道，开发程序的基本流程是：设计-代码编写-编译-链接-执行</p>
+
+<p>每一个步骤展开都是一个很大的课题，链接是一个被人忽略的课题，因为它并不是很复杂，相对于编译来说它还是比较简单的，但是并不代表它不重要。<br/>
+现在编译链接的环节基本上由IDE帮助我们完成了，于是我们很少关注编译链接。虽然说不懂编译链接对开发程序并没有很大影响，但是如果要成为大牛，计算机底层的知识还是要掌握的。<br/>
+编译的知识很多，不是几篇文章能说完的，推荐看《编译原理》。</p>
+
+<p>这篇文章以及几篇相关的文章将参考《深入理解计算机系统》这本书，对链接作一些介绍。</p>
+
+<span id="more"></span><!-- more -->
+
+<h1 id="toc_1">链接的基本概念</h1>
+
+<blockquote>
+<p>链接(linking)就是将不同部分的代码和数据收集和组合成为一个单一文件的过程，这个文件可被加载或拷贝到内存并执行。</p>
+</blockquote>
+
+<p>简单来说，就是把程序用到的所有源文件的目标文件合成一个可执行目标文件，是一个“多合一”的过程。</p>
+
+<p>链接的执行时机包括：</p>
+
+<ul>
+<li><strong>编译时</strong>：源代码被翻译为机器码的时候。</li>
+<li><strong>加载时</strong>：程序被加载器加载到内存并执行的时候。</li>
+<li><strong>运行时</strong>：由应用程序执行。</li>
+</ul>
+
+<p>在早期计算机系统中，链接是手动执行的。在现代计算机系统中，链接是由链接器自动执行的。</p>
+
+<h1 id="toc_2">链接的意义</h1>
+
+<p>链接器在软件开发中扮演了关键的角色，它使得分离编译成为可能。我们不用将一个大小的应用程序组织成一个巨大的源文件，而是可以把它分解成为更小的，更好管理的模块，可以独立的修改和编译这些模块，最终由链接器链接成为一个可执行文件。</p>
+
+<h1 id="toc_3">为什么要学习链接的知识</h1>
+
+<p>链接通常是由链接器处理的，不需要我们插手。但是这是在没有错误产生的情况下，一旦错误产生，不理解链接的工作过程和知识，我们就无法排除错误。以下列出学习链接的几个理由：</p>
+
+<ul>
+<li><strong>理解链接器将帮助你构造大型程序</strong>。构造大型程序的程序员经常会遇到由于缺少模块，库和不兼容库版本引起的链接器错误。除非你理解链接器是如何解析引用，什么是库，以及链接器是如何使用库来解析引用的，否则你无处着手处理错误。</li>
+<li><strong>理解链接器将帮助你避免一些危险的编程错误</strong>。默认情况下，乱用全局变量在链接时是不会产生警告的，这样的错误难以调试。理解链接器将让你知道原因，如何避免。</li>
+<li><strong>理解链接将帮助你理解语言的作用域规则是如何实现的</strong>。</li>
+<li><strong>理解链接将帮助你理解其他重要的系统概念</strong>。</li>
+<li><strong>理解链接将使你能够开发共享库</strong>。</li>
+</ul>
+
+<h1 id="toc_4">简单的链接过程</h1>
+
+<p>来看一个简单的静态链接过程，对链接有一个感性的认识。</p>
+
+<p><img src="media/15473672637243/15473899136409.png" alt=""/></p>
+
+<p>源代码经过编译器翻译为汇编语言文件，再经过汇编器翻译为可重定向目标文件，最后由链接器链接为可执行目标文件。<br/>
+(ccl:C编译器, as:汇编器, ld:链接器)</p>
+
+<p>为了创建可执行文件，链接器要完成两个任务：</p>
+
+<ul>
+<li><strong>符号解析</strong>。目标文件定义和引用符号。符号解析的目的是将每个符号引用和一个符号定义联系起来。</li>
+<li><strong>重定位</strong>。编译器和汇编器生产从地址零开始的代码和数据节。链接器通过把每个符号定义与一个存储器地址联系起来，然后修改所有对这些符号的引用，使得它们指向这个存储器地址，从而重定位这些节。</li>
+</ul>
+
+<h1 id="toc_5">目标文件</h1>
+
+<ul>
+<li><strong>可重定位目标文件</strong>。包含二进制代码和数据，其形式可以在编译时与其他可重定位目标文件合并起来，创建一个可执行目标文件。</li>
+<li><strong>可执行目标文件</strong>。包含二进制代码和数据，其形式可以直接被拷贝到内存并执行。</li>
+<li><strong>共享目标文件</strong>。一种特殊类型的可重定位目标文件，可以在加载或运行时，被动态加载到存储器并链接。</li>
+</ul>
+
+<h2 id="toc_6">可重定位目标文件</h2>
+
+<p><img src="media/15473672637243/15473899224660.png" alt=""/></p>
+
+<ul>
+<li><strong>ELF header</strong>:前16个字节描述了字的大小和生产该文件系统的字节顺序，剩下的包含帮助链接器解析和解释目标文件的信息。</li>
+<li><strong>.text</strong>:已编译程序的机器代码</li>
+<li><strong>.rodata</strong>:只读数据</li>
+<li><strong>.data</strong>:已初始化的全局C变量</li>
+<li><strong>.bss</strong>:未初始化的全局C变量，不占空间</li>
+<li><strong>.symtab</strong>:符号表，存放程序中被定义和引用的函数和全局变量的信息。</li>
+<li><strong>.rel.text</strong>:一个.text节位置列表，保存跟其他文件链接之后需要修改的项</li>
+<li><strong>.rel.data</strong>:记录被模块定义或引用的全局变量的重定位信息</li>
+<li><strong>.debug</strong>:调试符号表</li>
+<li><strong>.line</strong>:源代码行号和.text节中机器码的映射,用于调试.</li>
+<li><strong>.strtab</strong>:一个字符串表包含.symtab和.debug的符号表还有其节头部名.</li>
+</ul>
+
+<h2 id="toc_7">可执行目标文件</h2>
+
+<p><img src="media/15473672637243/15473899327138.png" alt=""/></p>
+
+<p>从上图可以看出，可执行目标文件被分为三个部分：</p>
+
+<ul>
+<li><strong>代码段</strong>:只读内存段</li>
+<li><strong>数据段</strong>:可读写内存段</li>
+<li><strong>符号表和调试信息</strong>:这些数据不会在执行时不会被加载到内存中.</li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html'>计算机基础</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="spice-server-1.html" 
+	        title="Previous Post: spice源码分析之server(1)">&laquo; spice源码分析之server(1)</a>
+	    
+	    
+	        <a class="basic-alignment right" href="android-spice.html" 
+	        title="Next Post: 桌面虚拟化传输协议之android spice">桌面虚拟化传输协议之android spice &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

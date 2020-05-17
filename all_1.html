@@ -1,0 +1,718 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div class="blog-index">
+
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="high-quality-code.html">编写高质量代码的思考</a></h1>
+			<p class="meta"><time datetime="2018-08-09T16:14:23+08:00" 
+			pubdate data-updated="true">2018/8/9</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>最近在看《代码大全》，可以说是一本软件开发的百科全书，特别厚，但是干货也很多。平时写代码，代码规范是一个最低的要求（很多老代码连最低要求都达不到），为什么要这样规定代码要这么写，而不是那么写？这是一个值得深究的问题。而不是说我照着代码规范写代码就算完了，高质量的代码是一个专业工程师的追求。要知其然知其所以然，最近写发票解析的代码，因为涉及带解析PDF的算法，复杂度比较高，所以花了很多时间在重构，学以致用的时候积累了一些心得。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="high-quality-code.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="getty.html">【Getty】Java NIO框架设计与实现</a></h1>
+			<p class="meta"><time datetime="2017-07-30T16:14:23+08:00" 
+			pubdate data-updated="true">2017/7/30</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p><a href="https://github.com/x-hansong/Getty">Getty</a>是我为了学习 Java NIO 所写的一个 NIO 框架，实现过程中参考了 Netty 的设计，同时使用 Groovy 来实现。虽然只是玩具，但是麻雀虽小，五脏俱全，在实现过程中，不仅熟悉了 NIO 的使用，还借鉴了很多 Netty 的设计思想，提升了自己的编码和设计能力。</p>
+
+<p>至于为什么用 Groovy 来写，因为我刚学了 Groovy，正好拿来练手，加上 Groovy 是兼容 Java 的，所以只是语法上的差别，底层实现还是基于 Java API的。</p>
+
+<p>Getty 的核心代码行数不超过 500 行，一方面得益于 Groovy 简洁的语法，另一方面是因为我只实现了核心的逻辑，最复杂的其实是解码器实现。脚手架容易搭，摩天大楼哪有那么容易盖，但用来学习 NIO 足以。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="getty.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="idea-live-templates.html">代码生成利器：IDEA 强大的 Live Templates</a></h1>
+			<p class="meta"><time datetime="2017-03-17T16:14:23+08:00" 
+			pubdate data-updated="true">2017/3/17</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>Java 开发过程经常需要编写有固定格式的代码，例如说声明一个私有变量，<code>logger</code>或者<code>bean</code>等等。对于这种小范围的代码生成，我们可以利用 IDEA 提供的 <code>Live Templates</code>功能。刚开始觉得它只是一个简单的<code>Code Snippet</code>，后来发现它支持变量函数配置，可以支持很复杂的代码生成。下面我来介绍一下<code>Live Templates</code>的用法。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="idea-live-templates.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="codemaker.html">IDEA代码生成插件CodeMaker</a></h1>
+			<p class="meta"><time datetime="2017-02-03T16:14:23+08:00" 
+			pubdate data-updated="true">2017/2/3</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>Java 开发过程中经常会遇到编写重复代码的事情，例如说：编写领域类和持久类的时候，大部分时候它们的变量名称，类型是一样的，在编写领域类的时候常常要重复写类似的代码。类似的问题太多，却没找到可以支持自定义代码模板的插件，只能自己动手，丰衣足食，开发了一个 IDEA 的代码生成插件，通过 Velocity 支持自定义代码模板来生成代码。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="codemaker.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="Recruitment-experience.html">2016 我的校招经历与经验</a></h1>
+			<p class="meta"><time datetime="2016-11-25T16:14:23+08:00" 
+			pubdate data-updated="true">2016/11/25</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>我的校招今年结束得比较早，主要是因为拿的都是 9 月初提前批的 offer。今年的校招我拿了网易，阿里的 offer，而且都不是批发价。网易内推比较早，发 offer 也早，所以是我第一个拿到的 offer。不过我最想去的是阿里，所以在阿里给我发了 offer 之后，我就没有再参加腾讯，百度的面试了。想想还是总结一下找工作的经验，让大家参考一下，希望有所帮助。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="Recruitment-experience.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="Paxos.html">图解 Paxos 一致性协议</a></h1>
+			<p class="meta"><time datetime="2016-09-30T16:14:23+08:00" 
+			pubdate data-updated="true">2016/9/30</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>Paxos 一致性协议可以说是一致性协议研究的起点，也以难以理解闻名。其实协议本身并没有多难理解，它的难理解性主要体现在：为何如此设计协议以及如何证明其正确性。本文尝试通过流程图来说明协议的内容以及基本应用过程，不涉及如何证明其正确性。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="Paxos.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="zab.html">Zookeeper ZAB 协议分析</a></h1>
+			<p class="meta"><time datetime="2016-08-25T22:28:28+08:00" 
+			pubdate data-updated="true">2016/8/25</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>ZAB 协议是为分布式协调服务 ZooKeeper 专门设计的一种支持崩溃恢复的原子广播协议。在 ZooKeeper 中，主要依赖 ZAB 协议来实现分布式数据一致性，基于该协议，ZooKeeper 实现了一种主备模式的系统架构来保持集群中各个副本之间的数据一致性。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="zab.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="zookeeper-watch-async.html">ZooKeeper Watcher 和 AsyncCallback 的区别与实现</a></h1>
+			<p class="meta"><time datetime="2016-08-22T16:14:23+08:00" 
+			pubdate data-updated="true">2016/8/22</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>初学 Zookeeper 会发现客户端有两种回调方式： Watcher 和 AsyncCallback，而 Zookeeper 的使用是离不开这两种方式的，搞清楚它们之间的区别与实现显得尤为重要。本文将围绕下面几个方面展开</p>
+
+<ul>
+<li>Watcher 和 AsyncCallback 的区别</li>
+<li>Watcher 的回调实现</li>
+<li>AsyncCallback 的回调实现</li>
+<li>IO 与事件处理</li>
+</ul>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="zookeeper-watch-async.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="ThreadLocal-memory-leak.html">深入分析 ThreadLocal 内存泄漏问题</a></h1>
+			<p class="meta"><time datetime="2016-08-09T16:14:23+08:00" 
+			pubdate data-updated="true">2016/8/9</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p><code>ThreadLocal</code> 的作用是提供线程内的局部变量，这种变量在线程的生命周期内起作用，减少同一个线程内多个函数或者组件之间一些公共变量的传递的复杂度。但是如果滥用 <code>ThreadLocal</code>，就可能会导致内存泄漏。下面，我们将围绕三个方面来分析 <code>ThreadLocal</code> 内存泄漏的问题</p>
+
+<ul>
+<li><code>ThreadLocal</code> 实现原理</li>
+<li><code>ThreadLocal</code>为什么会内存泄漏</li>
+<li><code>ThreadLocal</code> 最佳实践</li>
+</ul>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="ThreadLocal-memory-leak.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="ThreadLocal-leak-analyze.html">ThreadLocal 内存泄露的实例分析</a></h1>
+			<p class="meta"><time datetime="2016-08-09T16:14:23+08:00" 
+			pubdate data-updated="true">2016/8/9</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>之前写了一篇<a href="https://blog.xiaohansong.com/ThreadLocal-memory-leak.html">深入分析 ThreadLocal 内存泄漏问题</a>是从理论上分析<code>ThreadLocal</code>的内存泄漏问题，这一篇文章我们来分析一下实际的内存泄漏案例。分析问题的过程比结果更重要，理论结合实际才能彻底分析出内存泄漏的原因。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="ThreadLocal-leak-analyze.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+  
+	<div class="pagination">
+	 <a class="prev" href="all_2.html">&larr; Older</a> 
+<a href="archives.html">Blog Archives</a>
+	 <a class="next" href="all.html">Newer &rarr;</a>  
+	    
+	</div>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

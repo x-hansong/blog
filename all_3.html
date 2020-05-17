@@ -1,0 +1,741 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div class="blog-index">
+
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="avoid-global-state.html">简洁代码之道（2）：避免全局可变状态</a></h1>
+			<p class="meta"><time datetime="2015-11-30T16:14:23+08:00" 
+			pubdate data-updated="true">2015/11/30</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>本文是我看了 <a href="https://www.youtube.com/playlist?list=PL693EFD059797C21E">谷歌简洁代码演讲系列</a> 中的 <a href="https://www.youtube.com/watch?v=-FRm3VPhseI&amp;index=4&amp;list=PL693EFD059797C21E">全局状态与单例模式</a> 之后的总结。本文的主题是：避免全局可变状态。下面我们将围绕几个问题开展讨论：</p>
+
+<ul>
+<li>什么是全局状态</li>
+<li>如何设计好的单例模式</li>
+<li>如何设计好的 API</li>
+</ul>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="avoid-global-state.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="clean-code-polymorphism.html">简洁代码之道（1）：用多态替代条件语句</a></h1>
+			<p class="meta"><time datetime="2015-11-24T16:14:24+08:00" 
+			pubdate data-updated="true">2015/11/24</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>本文是我看了 <a href="https://www.youtube.com/playlist?list=PL693EFD059797C21E">谷歌简洁代码演讲系列</a> 中的 <a href="https://www.youtube.com/watch?v=4F72VULWFvc&amp;list=PL693EFD059797C21E&amp;index=1">多态和条件语句</a> 的总结。大部分的条件语句是可以用多态代替的，本文将围绕以下问题开展：</p>
+
+<ul>
+<li>为什么要用多态替代条件语句</li>
+<li>多态和条件语句的使用场景</li>
+<li>如何用多态代替条件语句</li>
+<li>在哪里决定要创建什么子类</li>
+<li>什么情况下使用多态</li>
+</ul>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="clean-code-polymorphism.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="IoC-and-DI.html">控制反转（IoC）与依赖注入（DI）</a></h1>
+			<p class="meta"><time datetime="2015-10-21T16:14:23+08:00" 
+			pubdate data-updated="true">2015/10/21</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>最近在学习Spring框架，它的核心就是IoC容器。要掌握Spring框架，就必须要理解控制反转的思想以及依赖注入的实现方式。下面，我们将围绕下面几个问题来探讨控制反转与依赖注入的关系以及在Spring中如何应用。</p>
+
+<ul>
+<li>什么是控制反转？</li>
+<li>什么是依赖注入？</li>
+<li>它们之间有什么关系？</li>
+<li>如何在Spring框架中应用依赖注入？</li>
+</ul>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="IoC-and-DI.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="linux-paging.html">Linux内存寻址之分页机制</a></h1>
+			<p class="meta"><time datetime="2015-10-05T16:14:23+08:00" 
+			pubdate data-updated="true">2015/10/5</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<p>在上一篇文章<a href="linux-segment.html">Linux内存寻址之分段机制</a>中，我们了解逻辑地址通过分段机制转换为线性地址的过程。下面，我们就来看看更加重要和复杂的分页机制。</p>
+
+<p>分页机制在段机制之后进行，以完成线性—物理地址的转换过程。段机制把逻辑地址转换为线性地址，分页机制进一步把该线性地址再转换为物理地址。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="linux-paging.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="linux-segment.html">Linux内存寻址之分段机制</a></h1>
+			<p class="meta"><time datetime="2015-10-03T16:14:23+08:00" 
+			pubdate data-updated="true">2015/10/3</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>最近在学习Linux内核，读到《深入理解Linux内核》的内存寻址一章。原本以为自己对分段分页机制已经理解了，结果发现其实是一知半解。于是，查找了很多资料，最终理顺了内存寻址的知识。现在把我的理解记录下来，希望对内核学习者有一定帮助，也希望大家指出错误之处。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="linux-segment.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="ucore-1.html">ucore实验之操作系统启动流程</a></h1>
+			<p class="meta"><time datetime="2015-10-02T16:14:23+08:00" 
+			pubdate data-updated="true">2015/10/2</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>本文基于 ucore 操作系统实验,简要分析操作系统的启动流程.</p>
+
+<p>ucore 操作系统是清华大学用于操作系统教学实验的OS，参考了 MIT 的 JOS，哈佛的 OS161 以及 Linux 系统。我们可以通过这个迷你操作系统在代码层面上理解操作系统的思想。</p>
+
+<blockquote>
+<p><a href="https://github.com/chyyuu/ucore_os_lab">ucore labs</a> was used as OS Experiments in OS Course Of Dept. of Computer Science &amp; Technology, Tsinghua University. ucore is a teaching OS which is derived from xv6&amp;jos in MIT, OS161 in Harvard and Linux.</p>
+</blockquote>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="ucore-1.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="linux-code-tool.html">Linux 平台下阅读源码的工具</a></h1>
+			<p class="meta"><time datetime="2015-08-24T16:14:23+08:00" 
+			pubdate data-updated="true">2015/8/24</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>看源代码是一个程序员必须经历的事情,也是可以提升能力的一个捷径.个人认为: <strong>要完全掌握一个软件的方法只有阅读源码</strong><br/>
+在Windows下有sourceinsight这个源码阅读软件(虽然我没用过,但是网上评价还不错),由于我是个Linuxer,并不喜欢用Windows,所以自然是选择在Linux下阅读源码的工具了.<br/>
+下面我将逐一介绍在Linux下阅读源码的工具.</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="linux-code-tool.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="spice-server-1.html">spice源码分析之server(1)</a></h1>
+			<p class="meta"><time datetime="2015-08-19T16:14:23+08:00" 
+			pubdate data-updated="true">2015/8/19</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<p><u>前言:本文是结合我自己阅读代码的心得总结而来,同时会忽略很多细节,只能作为阅读源码时的参考.如有错误,欢迎指正.</u></p>
+
+<h2 id="toc_0">Spice简介</h2>
+
+<blockquote>
+<p>Spice是一个开源的云计算解决方案，使客户端能显示远程虚拟主机的操作界面并且使用其设备，如键盘，鼠标，声音等。Spice给用户提供了一种如同操作本地机器一样的体验，同时尽可能把密集的CPU和GPU任务在客户端上执行。Spice能在局域网和互联网间使用，而不减少用户体验。<br/>
+<img src="media/15473672637627/15473878119843.png" alt=""/></p>
+</blockquote>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="spice-server-1.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="link-concept.html">理解链接之链接的基本概念</a></h1>
+			<p class="meta"><time datetime="2015-07-19T16:14:23+08:00" 
+			pubdate data-updated="true">2015/7/19</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h1 id="toc_0">前言</h1>
+
+<p>我们知道，开发程序的基本流程是：设计-代码编写-编译-链接-执行</p>
+
+<p>每一个步骤展开都是一个很大的课题，链接是一个被人忽略的课题，因为它并不是很复杂，相对于编译来说它还是比较简单的，但是并不代表它不重要。<br/>
+现在编译链接的环节基本上由IDE帮助我们完成了，于是我们很少关注编译链接。虽然说不懂编译链接对开发程序并没有很大影响，但是如果要成为大牛，计算机底层的知识还是要掌握的。<br/>
+编译的知识很多，不是几篇文章能说完的，推荐看《编译原理》。</p>
+
+<p>这篇文章以及几篇相关的文章将参考《深入理解计算机系统》这本书，对链接作一些介绍。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="link-concept.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="android-spice.html">桌面虚拟化传输协议之android spice</a></h1>
+			<p class="meta"><time datetime="2015-07-16T16:14:23+08:00" 
+			pubdate data-updated="true">2015/7/16</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h1 id="toc_0">背景</h1>
+
+<p>云计算是目前计算机领域的一个热门领域，桌面虚拟化是其中的一个重要应用，即把桌面系统在服务器端虚拟化，然后通过传输协议传输数据到客户端来实现桌面虚拟化，这样的好处就在于不管用什么设备，只要通过客户端都可以访问到云端的系统，随时随地都可以在一个系统上工作。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="android-spice.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+  
+	<div class="pagination">
+	 <a class="prev" href="all_4.html">&larr; Older</a> 
+<a href="archives.html">Blog Archives</a>
+	 <a class="next" href="all_2.html">Newer &rarr;</a>  
+	    
+	</div>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

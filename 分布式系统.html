@@ -1,0 +1,672 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  分布式系统 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div class="blog-index">
+
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a></h1>
+			<p class="meta"><time datetime="2019-04-08T09:50:58+08:00" 
+			pubdate data-updated="true">2019/4/8</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<p>CAP 理论是分布式系统设计中的一个重要理论，虽然它为系统设计提供了非常有用的依据，但是也带来了很多误解。本文将从 CAP 诞生的背景说起，然后对理论进行解释，最后对 CAP 在当前背景下的一些新理解进行分析，澄清一些对 CAP 的误解。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="cap-theorem.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="Continuous-Consistency.html">分布式系统：持续一致性</a></h1>
+			<p class="meta"><time datetime="2019-03-15T09:20:03+08:00" 
+			pubdate data-updated="true">2019/3/15</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<p>在分布式系统中，数据复制一般是为了增强系统的可用性或提高性能，但是数据一致性跟系统性能往往是矛盾的，对于数据复制的一致性问题没有最好的解决方法。除非放宽对一致性的要求才能获取特定场景下面的有效解决方法。那么放宽一致性的标准是什么？为此，Yu 和 Vahdat 提出了一种用于衡量不一致性以及表述系统中能够容忍哪些不一致性的模型：持续一致性。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="Continuous-Consistency.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="consistency-protocol.html">分布式系统：一致性协议</a></h1>
+			<p class="meta"><time datetime="2019-03-14T10:32:06+08:00" 
+			pubdate data-updated="true">2019/3/14</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<p>一致性模型本质上是进程与数据存储的约定，通过一致性模型我们可以理解和推理在分布式系统中数据复制需要考虑的问题和基本假设。那么，一致性模型的具体实现有一些呢？本文会介绍一致性协议实现的主要思想和方法。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="consistency-protocol.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="consistency-model.html">分布式系统：一致性模型</a></h1>
+			<p class="meta"><time datetime="2019-03-10T16:03:48+08:00" 
+			pubdate data-updated="true">2019/3/10</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<p>分布式系统中一个重要的问题就是数据复制，数据复制一般是为了增强系统的可用性或提高性能。而实现数据复制的一个主要难题就是保持各个副本的一致性。本文首先讨论数据复制的场景中一致性模型如此重要的原因，然后讨论一致性模型的含义，最后分析常用的一致性模型。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="consistency-model.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="vertor-clock.html">分布式系统：向量时钟</a></h1>
+			<p class="meta"><time datetime="2019-02-09T17:26:08+08:00" 
+			pubdate data-updated="true">2019/2/9</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<p>在上一篇文章<a href="lamport-logic-clock.html">分布式系统：Lamport 逻辑时钟</a>中我们知道Lamport 逻辑时钟帮助我们得到了分布式系统中的事件全序关系，但是对于同时发生的关系却不能很好的描述，导致无法描述事件的因果关系。向量时钟是在 Lamport 时间戳基础上演进的另一种逻辑时钟方法，它通过向量结构不但记录本节点的 Lamport 时间戳，同时也记录了其他节点的 Lamport 时间戳，因此能够很好描述同时发生关系以及事件的因果关系。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="vertor-clock.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="lamport-logic-clock.html">分布式系统：Lamport 逻辑时钟</a></h1>
+			<p class="meta"><time datetime="2019-01-31T11:15:40+08:00" 
+			pubdate data-updated="true">2019/1/31</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<p>分布式系统解决了传统单体架构的单点问题和性能容量问题，另一方面也带来了很多的问题，其中一个问题就是多节点的时间同步问题：不同机器上的物理时钟难以同步，导致无法区分在分布式系统中多个节点的事件时序。1978年Lamport在《<a href="http://research.microsoft.com/users/lamport/pubs/time-clocks.pdf">Time, Clocks and the Ordering of Events in a Distributed System</a>》中提出了逻辑时钟的概念，来解决分布式系统中区分事件发生的时序问题。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="lamport-logic-clock.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="Paxos.html">图解 Paxos 一致性协议</a></h1>
+			<p class="meta"><time datetime="2016-09-30T16:14:23+08:00" 
+			pubdate data-updated="true">2016/9/30</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>Paxos 一致性协议可以说是一致性协议研究的起点，也以难以理解闻名。其实协议本身并没有多难理解，它的难理解性主要体现在：为何如此设计协议以及如何证明其正确性。本文尝试通过流程图来说明协议的内容以及基本应用过程，不涉及如何证明其正确性。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="Paxos.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="zab.html">Zookeeper ZAB 协议分析</a></h1>
+			<p class="meta"><time datetime="2016-08-25T22:28:28+08:00" 
+			pubdate data-updated="true">2016/8/25</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>ZAB 协议是为分布式协调服务 ZooKeeper 专门设计的一种支持崩溃恢复的原子广播协议。在 ZooKeeper 中，主要依赖 ZAB 协议来实现分布式数据一致性，基于该协议，ZooKeeper 实现了一种主备模式的系统架构来保持集群中各个副本之间的数据一致性。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="zab.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
+		  	<h1 class="entry-title"><a href="zookeeper-watch-async.html">ZooKeeper Watcher 和 AsyncCallback 的区别与实现</a></h1>
+			<p class="meta"><time datetime="2016-08-22T16:14:23+08:00" 
+			pubdate data-updated="true">2016/8/22</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>初学 Zookeeper 会发现客户端有两种回调方式： Watcher 和 AsyncCallback，而 Zookeeper 的使用是离不开这两种方式的，搞清楚它们之间的区别与实现显得尤为重要。本文将围绕下面几个方面展开</p>
+
+<ul>
+<li>Watcher 和 AsyncCallback 的区别</li>
+<li>Watcher 的回调实现</li>
+<li>AsyncCallback 的回调实现</li>
+<li>IO 与事件处理</li>
+</ul>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="zookeeper-watch-async.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+  
+	<div class="pagination">
+	
+<a href="archives.html">Blog Archives</a>
+	 
+	    
+	</div>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

@@ -1,0 +1,668 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Java 线程池框架核心代码分析 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Java 线程池框架核心代码分析</h1>
+				<p class="meta"><time datetime="2016-07-12T16:14:23+08:00" pubdate data-updated="true">2016/7/12</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">前言</h2>
+
+<p>多线程编程中，为每个任务分配一个线程是不现实的，线程创建的开销和资源消耗都是很高的。线程池应运而生，成为我们管理线程的利器。Java 通过<code>Executor</code>接口，提供了一种标准的方法将任务的提交过程和执行过程解耦开来，并用<code>Runnable</code>表示任务。</p>
+
+<p>下面，我们来分析一下 Java 线程池框架的实现<code>ThreadPoolExecutor</code>。</p>
+
+<p><em>下面的分析基于JDK1.7</em></p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">生命周期</h2>
+
+<p><code>ThreadPoolExecutor</code>中，使用<code>CAPACITY</code>的高3位来表示运行状态，分别是：</p>
+
+<ol>
+<li>RUNNING：接收新任务，并且处理任务队列中的任务</li>
+<li>SHUTDOWN：不接收新任务，但是处理任务队列的任务</li>
+<li>STOP：不接收新任务，不处理任务队列，同时中断所有进行中的任务</li>
+<li>TIDYING：所有任务已经被终止，工作线程数量为 0，到达该状态会执行<code>terminated()</code></li>
+<li>TERMINATED：<code>terminated()</code>执行完毕</li>
+</ol>
+
+<p><img src="media/15473672636777/15473737617278.png" alt=""/></p>
+
+<p><code>ThreadPoolExecutor</code>中用原子类来表示状态位</p>
+
+<pre><code class="language-text">private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+</code></pre>
+
+<h2 id="toc_2">线程池模型</h2>
+
+<h3 id="toc_3">核心参数</h3>
+
+<ul>
+<li><code>corePoolSize</code>：最小存活的工作线程数量（如果设置<code>allowCoreThreadTimeOut</code>，那么该值为 0）</li>
+<li><code>maximumPoolSize</code>：最大的线程数量，受限于<code>CAPACITY</code></li>
+<li><code>keepAliveTime</code>：对应线程的存活时间，时间单位由TimeUnit指定</li>
+<li><code>workQueue</code>：工作队列，存储待执行的任务</li>
+<li><code>RejectExecutionHandler</code>：拒绝策略，线程池满后会触发</li>
+</ul>
+
+<p><strong>线程池的最大容量</strong>：<code>CAPACITY</code>中的前三位用作标志位，也就是说工作线程的最大容量为<code>(2^29)-1</code></p>
+
+<h3 id="toc_4">四种模型</h3>
+
+<ul>
+<li><code>CachedThreadPool</code>：一个可缓存的线程池，如果线程池的当前规模超过了处理需求时，那么将回收空闲的线程，当需求增加时，则可以添加新的线程，线程池的规模不存在任何的限制。</li>
+<li><code>FixedThreadPool</code>：一个固定大小的线程池，提交一个任务时就创建一个线程，直到达到线程池的最大数量，这时线程池的大小将不再变化。</li>
+<li><code>SingleThreadPool</code>：一个单线程的线程池，它只有一个工作线程来执行任务，可以确保按照任务在队列中的顺序来串行执行，如果这个线程异常结束将创建一个新的线程来执行任务。</li>
+<li><code>ScheduledThreadPool</code>：一个固定大小的线程池，并且以延迟或者定时的方式来执行任务，类似于Timer。</li>
+</ul>
+
+<h2 id="toc_5">执行任务 execute</h2>
+
+<p>核心逻辑：</p>
+
+<ol>
+<li>当前线程数量 &lt; <code>corePoolSize</code>，直接开启新的核心线程执行任务<code>addWorker(command, true)</code></li>
+<li><p>当前线程数量 &gt;= <code>corePoolSize</code>，且任务加入工作队列成功</p>
+<ol>
+<li>检查线程池当前状态是否处于<code>RUNNING</code></li>
+<li>如果否，则拒绝该任务</li>
+<li>如果是，判断当前线程数量是否为 0，如果为 0，就增加一个工作线程。</li>
+</ol></li>
+<li><p>开启普通线程执行任务<code>addWorker(command, false)</code>，开启失败就拒绝该任务</p></li>
+</ol>
+
+<p>从上面的分析可以总结出线程池运行的四个阶段：</p>
+
+<ol>
+<li><code>poolSize &lt; corePoolSize</code> 且队列为空，此时会新建线程来处理提交的任务</li>
+<li><code>poolSize == corePoolSize</code>，此时提交的任务进入工作队列，工作线程从队列中获取任务执行，此时队列不为空且未满。</li>
+<li><code>poolSize == corePoolSize</code>，并且队列已满，此时也会新建线程来处理提交的任务，但是<code>poolSize &lt; maxPoolSize</code></li>
+<li><code>poolSize == maxPoolSize</code>，并且队列已满，此时会触发拒绝策略</li>
+</ol>
+
+<h2 id="toc_6">拒绝策略</h2>
+
+<p>前面我们提到任务无法执行会被拒绝，<code>RejectedExecutionHandler</code>是处理被拒绝任务的接口。下面是四种拒绝策略。</p>
+
+<ul>
+<li><code>AbortPolicy</code>：默认策略，终止任务，抛出RejectedException</li>
+<li><code>CallerRunsPolicy</code>：在调用者线程执行当前任务，不抛异常</li>
+<li><code>DiscardPolicy</code>： 抛弃策略，直接丢弃任务，不抛异常</li>
+<li><code>DiscardOldersPolicy</code>：抛弃最老的任务，执行当前任务，不抛异常</li>
+</ul>
+
+<h2 id="toc_7">线程池中的 Worker</h2>
+
+<p><code>Worker</code>继承了<code>AbstractQueuedSynchronizer</code>和<code>Runnable</code>，前者给<code>Worker</code>提供锁的功能，后者执行工作线程的主要方法<code>runWorker(Worker w)</code>（从任务队列捞任务执行）。Worker 引用存在<code>workers</code>集合里面，用<code>mainLock</code>守护。</p>
+
+<pre><code class="language-text">private final ReentrantLock mainLock = new ReentrantLock();
+private final HashSet&lt;Worker&gt; workers = new HashSet&lt;Worker&gt;();
+</code></pre>
+
+<h3 id="toc_8">核心函数 runWorker</h3>
+
+<p>下面是简化的逻辑，注意：每个工作线程的<code>run</code>都执行下面的函数</p>
+
+<pre><code class="language-text">final void runWorker(Worker w) {
+    Thread wt = Thread.currentThread();
+    Runnable task = w.firstTask;
+    w.firstTask = null;
+    while (task != null || (task = getTask()) != null) {
+        w.lock();
+        beforeExecute(wt, task);
+        task.run();
+        afterExecute(task, thrown);
+        w.unlock();
+    }
+    processWorkerExit(w, completedAbruptly);
+}
+</code></pre>
+
+<ol>
+<li>从<code>getTask()</code>中获取任务</li>
+<li>锁住 worker</li>
+<li>执行<code>beforeExecute(wt, task)</code>，这是<code>ThreadPoolExecutor</code>提供给子类的扩展方法</li>
+<li>运行任务，如果该worker有配置了首次任务，则先执行首次任务且只执行一次。</li>
+<li>执行<code>afterExecute(task, thrown);</code></li>
+<li>解锁 worker</li>
+<li>如果获取到的任务为 null，关闭 worker</li>
+</ol>
+
+<h2 id="toc_9">获取任务 getTask</h2>
+
+<p>线程池内部的任务队列是一个阻塞队列，具体实现在构造时传入。</p>
+
+<pre><code class="language-text">private final BlockingQueue&lt;Runnable&gt; workQueue;
+</code></pre>
+
+<p><code>getTask()</code>从任务队列中获取任务，支持阻塞和超时等待任务，四种情况会导致返回<code>null</code>，让<code>worker</code>关闭。</p>
+
+<ol>
+<li>现有的线程数量超过最大线程数量</li>
+<li>线程池处于<code>STOP</code>状态</li>
+<li>线程池处于<code>SHUTDOWN</code>状态且工作队列为空</li>
+<li>线程等待任务超时，且线程数量超过保留线程数量</li>
+</ol>
+
+<p>核心逻辑：根据<code>timed</code>在阻塞队列上超时等待或者阻塞等待任务，等待任务超时会导致工作线程被关闭。</p>
+
+<pre><code class="language-text">timed = allowCoreThreadTimeOut || wc &gt; corePoolSize;
+Runnable r = timed ?
+    workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) :
+    workQueue.take();
+</code></pre>
+
+<p>在以下两种情况下等待任务会超时：</p>
+
+<ol>
+<li>允许核心线程等待超时，即<code>allowCoreThreadTimeOut(true)</code></li>
+<li>当前线程是普通线程，此时<code>wc &gt; corePoolSize</code></li>
+</ol>
+
+<p>工作队列使用的是<code>BlockingQueue</code>，这里就不展开了，后面再写一篇详细的分析。</p>
+
+<h2 id="toc_10">总结</h2>
+
+<ul>
+<li><code>ThreadPoolExecutor</code>基于生产者-消费者模式，提交任务的操作相当于生产者，执行任务的线程相当于消费者。</li>
+<li><code>Executors</code>提供了四种基于<code>ThreadPoolExecutor</code>构造线程池模型的方法，除此之外，我们还可以直接继承<code>ThreadPoolExecutor</code>，重写<code>beforeExecute</code>和<code>afterExecute</code>方法来定制线程池任务执行过程。</li>
+<li>使用有界队列还是无界队列需要根据具体情况考虑，工作队列的大小和线程的数量也是需要好好考虑的。</li>
+<li>拒绝策略推荐使用<code>CallerRunsPolicy</code>，该策略不会抛弃任务，也不会抛出异常，而是将任务回退到调用者线程中执行。</li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Java.html'>Java</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="ThreadLocal-leak-analyze.html" 
+	        title="Previous Post: ThreadLocal 内存泄露的实例分析">&laquo; ThreadLocal 内存泄露的实例分析</a>
+	    
+	    
+	        <a class="basic-alignment right" href="RedisHttpSession.html" 
+	        title="Next Post: RedisHttpSession 的设计与实现">RedisHttpSession 的设计与实现 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

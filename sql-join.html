@@ -1,0 +1,694 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  三言两语：SQL 连接（join） - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">三言两语：SQL 连接（join）</h1>
+				<p class="meta"><time datetime="2016-04-14T16:14:23+08:00" pubdate data-updated="true">2016/4/14</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">前言</h2>
+
+<p>本文将从连接的理论和语法讲起，结合具体的例子，详细分析 SQL 连接。</p>
+
+<p>之前对数据库的连接操作似懂非懂，大概知道是什么东西，但是面试笔试的时候被虐成渣，讲不清连接到底是什么。吃一堑，长一智。这就是所谓的似懂非懂， 只是单纯的看书是没用的，只有亲自动手做实验才能彻底理解什么是连接。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">连接类型与条件</h2>
+
+<p>SQL 中每一种连接操作都包括一个连接类型和连接条件。</p>
+
+<h3 id="toc_2">连接类型</h3>
+
+<p>连接类型决定了如何处理连接条件不匹配的记录。</p>
+
+<p>| 连接类型 | 返回结果 |<br/>
+| -        |<br/>
+| inner join | 只包含左右表中满足连接条件的记录<br/>
+| left outer join | 在内连接的基础上，加入左表中不与右表匹配的记录，剩余字段赋值为null<br/>
+| right outer join | 在内连接的基础上，加入右表中不与左表匹配的记录，剩余字段赋值为null<br/>
+| full outer join | 左外连接和右外连接的组合。<br/>
+| cross join | 等价于没有连接条件的内连接（即产生笛卡尔乘积）</p>
+
+<p>关键字 inner 和 outer 是可选的，因为根据连接类型的其余内容我们可以判断出连接是内连接和外连接。简单来说就是：除了单独的<code>join</code>是内连接，其他都是外连接。</p>
+
+<p>对外连接来说，连接条件是<strong>必须的</strong>；但对内连接来说，连接条件是<strong>可选的</strong>（如果省略，将产生笛卡尔积）。</p>
+
+<h3 id="toc_3">连接条件</h3>
+
+<p>连接条件决定两个表中哪些记录互相匹配以及连接结果中出现哪些属性。</p>
+
+<p>| 连接条件 | 修饰位置 | 语义<br/>
+|- |<br/>
+| natural | 连接类型之前 | 连接两个表之间的所有公共字段相等的记录，合并相同的列<br/>
+| on &lt;谓词&gt; | 连接类型之后 | 连接符合谓词的记录，不合并相同的列<br/>
+| using(A1, A2,...,An) | 连接类型之后 | natural 语义的子集，只连接两个表中（A1,A2,..An)的公共字段，合并相同的列</p>
+
+<p>从上面的描述可以看到：连接操作是连接类型和连接条件的组合，只有在这个前提下才能真正的理解连接的功能。</p>
+
+<h2 id="toc_4">FQA</h2>
+
+<p>例子中使用到的表</p>
+
+<p><strong>student</strong></p>
+
+<pre><code class="language-text">+----+--------+
+| id | name   |
++----+--------+
+|  1 | 张三   |
+|  2 | 李四   |
+|  3 | 王二   |
+|  4 | 初一   |
+|  5 | 初二   |
++----+--------+
+</code></pre>
+
+<p><strong>teacher</strong></p>
+
+<pre><code class="language-text">+----+-----------+
+| id | name      |
++----+-----------+
+|  1 | 王老师    |
+|  2 | 李老师    |
+|  3 | 张老师    |
+|  4 | 肖老师    |
+|  5 | NULL      |
+|  6 | 陈老师    |
++----+-----------+
+</code></pre>
+
+<p><strong>course</strong></p>
+
+<pre><code class="language-text">+----+--------+------+
+| id | cname  | tid  |
++----+--------+------+
+|  1 | 数学   |    1 |
+|  2 | 英语   |    2 |
+|  3 | 语文   |    3 |
+|  4 | 体育   |    1 |
+|  5 | 物理   | NULL |
++----+--------+------+
+</code></pre>
+
+<p><strong>student_course</strong></p>
+
+<pre><code class="language-text">+-----+-----+
+| sid | cid |
++-----+-----+
+|   1 |   1 |
+|   1 |   2 |
+|   1 |   3 |
+|   2 |   1 |
+|   2 |   4 |
+|   3 |   5 |
+|   3 |   6 |
+|   4 |   4 |
++-----+-----+
+</code></pre>
+
+<h3 id="toc_5">内连接之后的结果集数量是多少？等于左表或者右表中记录的数量吗？</h3>
+
+<p>内连接<code>teacher</code> <code>course</code>的结果</p>
+
+<pre><code class="language-text">select * from teacher inner join course on teacher.id = course.tid;
++----+-----------+----+--------+------+
+| id | name      | id | cname  | tid  |
++----+-----------+----+--------+------+
+|  1 | 王老师    |  1 | 数学   |    1 |
+|  2 | 李老师    |  2 | 英语   |    2 |
+|  3 | 张老师    |  3 | 语文   |    3 |
+|  1 | 王老师    |  4 | 体育   |    1 |
++----+-----------+----+--------+------+
+</code></pre>
+
+<p>可以发现，王老师同时教数学和体育，因此左表中王老师匹配了右表中两条记录，物理没有老师教，所以没有出现在结果中。说明<strong>内连接的结果集数量等于左右表中匹配记录的数量</strong>。</p>
+
+<h3 id="toc_6">左连接之后的结果集数量是多少？等于左表的记录数量吗？</h3>
+
+<p>左连接<code>teacher</code> <code>course</code>的结果</p>
+
+<pre><code class="language-text">select * from teacher left join course on teacher.id = course.tid;
++----+-----------+------+--------+------+
+| id | name      | id   | cname  | tid  |
++----+-----------+------+--------+------+
+|  1 | 王老师    |    1 | 数学   |    1 |
+|  2 | 李老师    |    2 | 英语   |    2 |
+|  3 | 张老师    |    3 | 语文   |    3 |
+|  1 | 王老师    |    4 | 体育   |    1 |
+|  4 | 肖老师    | NULL | NULL   | NULL |
+|  5 | NULL      | NULL | NULL   | NULL |
+|  6 | 陈老师    | NULL | NULL   | NULL |
++----+-----------+------+--------+------+
+</code></pre>
+
+<p>可以看到，没有教授课程的老师也出现在结果中，对应的字段都为NULL。说明结果集的数量并不等于左表记录的数量，因为两个表直接不是一对一的关系。其数量应该等于<strong>内连接的结果集数量加上左表中不匹配的记录数量</strong>。</p>
+
+<h3 id="toc_7">Mysql 中不支持<code>full outer join</code></h3>
+
+<p>可以通过<code>union</code>操作模拟。</p>
+
+<pre><code class="language-text">SELECT * FROM teacher
+LEFT JOIN course ON teacher.id = course.tid
+UNION
+SELECT * FROM teacher
+RIGHT JOIN course ON teacher.id = course.id;
+
++------+-----------+------+--------+------+
+| id   | name      | id   | cname  | tid  |
++------+-----------+------+--------+------+
+|    1 | 王老师    |    1 | 数学   |    1 |
+|    2 | 李老师    |    2 | 英语   |    2 |
+|    3 | 张老师    |    3 | 语文   |    3 |
+|    1 | 王老师    |    4 | 体育   |    1 |
+|    4 | 肖老师    | NULL | NULL   | NULL |
+|    5 | NULL      | NULL | NULL   | NULL |
+|    6 | 陈老师    | NULL | NULL   | NULL |
+|    4 | 肖老师    |    4 | 体育   |    1 |
+|    5 | NULL      |    5 | 物理   | NULL |
++------+-----------+------+--------+------+
+</code></pre>
+
+<h3 id="toc_8">多表连接问题</h3>
+
+<p>考虑查出所有学生的课程的记录</p>
+
+<pre><code class="language-text">select * from student
+left join student_course on student.id = student_course.sid
+left join course on student_course.cid = course.id;
+
++----+--------+------+------+------+--------+------+
+| id | name   | sid  | cid  | id   | cname  | tid  |
++----+--------+------+------+------+--------+------+
+|  1 | 张三   |    1 |    1 |    1 | 数学   |    1 |
+|  2 | 李四   |    2 |    1 |    1 | 数学   |    1 |
+|  1 | 张三   |    1 |    2 |    2 | 英语   |    2 |
+|  1 | 张三   |    1 |    3 |    3 | 语文   |    3 |
+|  2 | 李四   |    2 |    4 |    4 | 体育   |    1 |
+|  4 | 初一   |    4 |    4 |    4 | 体育   |    1 |
+|  3 | 王二   |    3 |    5 |    5 | 物理   | NULL |
+|  3 | 王二   |    3 |    6 | NULL | NULL   | NULL |
+|  5 | 初二   | NULL | NULL | NULL | NULL   | NULL |
++----+--------+------+------+------+--------+------+
+</code></pre>
+
+<p>用学生表连接中间表，再连接课程表可以得到结果。连接操作是针对两个表之间的，所以上面的结果是从左到右，两两连接得到的。</p>
+
+<p><strong>如果你有更多关于连接的问题，或者发现文章中的错误，欢迎留言交流</strong></p>
+
+<p><u>参考资料</u><br/>
+《数据库系统概念》</p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%85%B6%E4%BB%96.html'>其他</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="JVM-Synchronized.html" 
+	        title="Previous Post: 【译】JVM 进行线程同步背后的原理">&laquo; 【译】JVM 进行线程同步背后的原理</a>
+	    
+	    
+	        <a class="basic-alignment right" href="forbidden.html" 
+	        title="Next Post: Hiho 1289 403 Forbidden（微软编程题）">Hiho 1289 403 Forbidden（微软编程题） &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

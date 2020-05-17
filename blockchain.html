@@ -1,0 +1,548 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  多视角看区块链 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">多视角看区块链</h1>
+				<p class="meta"><time datetime="2019-08-05T10:33:19+08:00" pubdate data-updated="true">2019/8/5</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">前言</h2>
+
+<p>像很多新技术一样，区块链开始火起来的时候评价是两级分化的，有人觉得区块链会成为下一代的互联网的基础设施，有人觉得区块链没有任何价值。很多时候观点的不同是因为看的角度不一样，如果能从多个角度看区块链，或许能得到更客观的观点，因此本文会分别从技术和业务的视角来分析区块链。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">从技术的视角看区块链</h2>
+
+<p>从技术的角度看，<strong>区块链是一种分布式防篡改账本，由于其独特的链式结构和共识机制保证了数据不可篡改。</strong></p>
+
+<p>首先区块链是一个分布式系统，而且要保证所有节点的数据保持一致，那么就必然涉及到一致性协议。一致性协议在区块链的语境里面一般叫做共识协议，像POW，POS，DPOS，PBFT 等等，本质上都是一致性协议，主要解决分布式系统中数据复制的问题。</p>
+
+<p>其次区块链的存储结构是链式的，可以把它理解为一个大链表，结合了密码学的技术它能够做到不可篡改。它是如何做到这一点的呢？我们拿比特币来举例，</p>
+
+<ol>
+<li>利用 hash 值作为每个块之间的连接指针，修改了块里面的数据就会导致指针变化，进而链条就断了，这样保证修改链上的某个数据会立马被其他节点发现。</li>
+<li>区块链所有节点都通过共识机制保存同样的数据，所以你修改了一个节点的数据是没有用的，必须要修改超过一半的节点数据才有用。</li>
+<li>比特币的 POW 共识机制和最长链机制决定了要修改链上数据必须要掌握超过 50% 的算力才能做到。</li>
+</ol>
+
+<p>值得注意的是区块链的不可篡改实际上指的是要篡改数据很难，并不是说真的不能篡改数据。可以发现区块链的技术特性是由多种技术组合而成的，它并不是一个全新的技术。</p>
+
+<p>最后是智能合约，智能合约说白了就是在区块链上执行的代码，它的特别之处在于它能够修改链上的状态数据，例如说用户的余额，利用智能合约就可以实现转账支付的功能。可以类比为数据库中的存储过程。</p>
+
+<p>从某些角度上看，区块链和数据库是有相似之处的。在区块链的世界里面，交易和交易产生的状态是严格分离的，例如说比特币里面的每笔交易是一笔转账流水，而用户的余额则是维护在特定的状态数据结构里面。这种实际上就是事件和状态分离的设计。根据交易的流水可以推导出用户的余额，本质上都是<strong>从一个初始化状态，结合所有发生的事件，来推导任意时刻的状态。</strong></p>
+
+<p>数据库也是类似的，数据库每次执行都是先记录执行日志，这样能够保证数据恢复的时候能利用这些日志。这里的日志记录的就是事件，而数据库表中的数据就是状态。从这个层面上看，区块链和数据库是非常相似的，只不过区块链把事件和状态直接暴露给了使用者，而数据库只会暴露状态给使用者。</p>
+
+<p>其实区块链和数据库的差异主要源于设计目的的不同，区块链是为了去中心且不安全的情况执行通用计算，因此它为了去中心化和安全的目标放弃了性能。而数据库的设计目标是为了方便管理数据，一般都是运行在可控的环境里面，不用考虑安全和去中心化的问题。</p>
+
+<p>区块链技术的标准现在还没有准确的定义。现在处于百花齐放的状态，各家都有各家的技术实现。区块链其实是脱胎于比特币，也就是说它是为了实现比特币产生的技术，如果后面 Libra 使用的技术跟现在我们看到的区块链技术完全不一样也不用惊讶，业务和技术是相辅相成的，最后的赢家会定义什么才是真正的区块链技术。</p>
+
+<h2 id="toc_2">从业务视角看区块链</h2>
+
+<p>从业务的角度看，<strong>区块链本质上是一种共识机制。它的价值在于通过防篡改保证事实的不可抵赖，建立人对机器的信任，提升形成共识的效率。</strong>以比特币为例，国家货币是以国家信用背书的，黄金是人们对贵金属的价值有共识，那么比特币到底凭什么这么值钱？关键就是共识，比特币总量恒定，产生新的比特币需要用算力挖矿，区块链技术保证了这个机制是安全可靠的，所以人们形成了对比特币的共识，或者说信任。这种信任就像人们信任支付宝一样，支付宝是由阿里这个大公司背书，而替比特币背书的就是区块链技术。</p>
+
+<p>现在很多的区块链应用场景都是多个机构做数据共享，数据共享这个事情当有中心化的平台其实效率是最高的，所有人都信任中心平台，数据以中心平台为准。但是在实际落地过程中也会有阻力，因为中心化意味着要让渡参与者的权利，很多场景下这是很困难的。所以用联盟链的方式来做数据共享，技术上其实是没有提升效率的，但是因为这种多中心的模式能够让参与方更容易接受，有时候反而能够推动业务落地。</p>
+
+<p>很多人认为区块链的价值在于去中心化，但是中心化才是互联网发展的趋势，人们为了效率而中心化，为了反抗垄断而要去中心化。比特币的出现是对中心化的货币发起的反抗，它做到了完全的去中心化，但是却牺牲了效率，每秒只能做几笔交易，因此也不可能真的作为世界货币。所以区块链在未来的应用形态应该是多中心，也就是联盟链，介于中心化和完全去中心化之间。Libra 币就是多中心的数字货币，由多个公司形成联盟，它不属于任何一家公司。Libra 的目标是要成为世界货币，因此效率必须要高，同时也要借助区块链来形成共识，保证不能随便发币以及价格的稳定。</p>
+
+<p>虽然区块链有很多美好的想象，但就跟很多新技术一样，目前技术还不成熟，曾鸣教授说区块链现在有点像90年代的互联网，还缺少一个像浏览器一样的杀手级应用。我个人觉得 Libra 有可能就是那个杀手级应用，并且它会定义新的区块链技术标准。Libra 跟比特币不一样，它不是完全去中心化的，更准确的描述是多中心，如果要类比的话它更像是欧元，Libra 协会就像是欧盟，只不过是国家变成了公司。</p>
+
+<p>本文虽然花了很多篇幅讨论区块链的技术，但是我们不能只局限于技术本身，脱离了具体的业务场景讨论技术没有任何价值。所以我们不用去纠结它的技术实现是去中心化和中心化的问题，<strong>区块链的核心价值在于共识机制，它的所有技术实现都是为了这个目标服务的，块链结构，智能合约等等这些都是为了建立人对区块链技术的信任，然后基于这种信任去构建业务上的共识机制，进而进行大规模的网络协同。</strong>王兴说过一句话很有道理：“讨论 Libra 背后的技术实现好不好就像讨论美元钞票的印刷技术精细不精细”。</p>
+
+<h2 id="toc_3">总结</h2>
+
+<p>本文从技术的角度简单分析区块链的核心技术特性，并且跟数据库进行了对比，区块链从技术的角度看就是一个分布式防篡改账本；然后从业务的角度分析了区块链的价值在于通过防篡改保证事实的不可抵赖，提升形成共识的效率；最后我们也要清醒的认识到区块链不是银弹，区块链的发展还有很长的路要走，这不是一个单纯技术进化的问题，而且如何真正落地解决社会问题的过程，解决的问题越大，区块链的价值就越大。</p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%85%B6%E4%BB%96.html'>其他</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="java-log-confict-solve.html" 
+	        title="Previous Post: Java 日志框架冲突问题排查与总结">&laquo; Java 日志框架冲突问题排查与总结</a>
+	    
+	    
+	        <a class="basic-alignment right" href="cap-theorem.html" 
+	        title="Next Post: 分布式系统：CAP 理论的前世今生">分布式系统：CAP 理论的前世今生 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

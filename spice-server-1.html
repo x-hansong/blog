@@ -1,0 +1,697 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  spice源码分析之server(1) - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">spice源码分析之server(1)</h1>
+				<p class="meta"><time datetime="2015-08-19T16:14:23+08:00" pubdate data-updated="true">2015/8/19</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<p><u>前言:本文是结合我自己阅读代码的心得总结而来,同时会忽略很多细节,只能作为阅读源码时的参考.如有错误,欢迎指正.</u></p>
+
+<h2 id="toc_0">Spice简介</h2>
+
+<blockquote>
+<p>Spice是一个开源的云计算解决方案，使客户端能显示远程虚拟主机的操作界面并且使用其设备，如键盘，鼠标，声音等。Spice给用户提供了一种如同操作本地机器一样的体验，同时尽可能把密集的CPU和GPU任务在客户端上执行。Spice能在局域网和互联网间使用，而不减少用户体验。<br/>
+<img src="media/15473672637627/15473878119843.png" alt=""/></p>
+</blockquote>
+
+<span id="more"></span><!-- more -->
+
+<p>Spice的基本组成包括:</p>
+
+<ul>
+<li>Spice协议</li>
+<li>Spice服务器</li>
+<li>Spice客户端</li>
+</ul>
+
+<p>Spice的相关组件包括:</p>
+
+<ul>
+<li>QXL设备</li>
+<li>QXL驱动</li>
+</ul>
+
+<p>其中,Spice服务器基于libspice（一个虚拟设备接口可插拔库）。VDI提供了一个通过软件组件来发布虚拟设备接口的标准方式，使得软件组件能够与虚拟设备交互。</p>
+
+<ul>
+<li>服务器使用Spice协议与客户端交互。</li>
+<li>服务器通过VDI接口与VDI主机程序（如QEMU）交互。</li>
+</ul>
+
+<p>也就是说spice服务器处于主机与客户端中间,是整个Spice的核心所在.下面我们开始从代码层面分析spice服务器<br/>
+更多资料查看本人翻译的spice新手文档<a href="https://www.gitbook.com/book/xhansong/spice-guidebook">Spice入门</a>,以及<a href="http://www.spice-space.org/">官方网站</a></p>
+
+<h2 id="toc_1">Spice server</h2>
+
+<p><img src="media/15473672637627/15473878302288.png" alt=""/></p>
+
+<p>图1是spice服务器的核心架构,贯穿整个源码的组织结构.<br/>
+值得一提的是,spice server是作为一个库提供给qemu使用的,编译出来就是libspice,所以代码中没有main函数.<br/>
+下面我们先了解一个server源码中使用到的一些核心概念,在看源码之前推荐大家先看一遍<a href="https://www.gitbook.com/book/xhansong/spice-guidebook">Spice入门</a>,否则理解代码中的某些核心概念会很吃力.</p>
+
+<h3 id="toc_2">部分宏定义</h3>
+
+<ul>
+<li><strong>SPICE_GNUC_DEPRECATED</strong>,其定义是<code>#define SPICE_GNUC_DEPRECATED  __attribute__((__deprecated__))</code>表示该函数以及被弃用,在编译时会给出警告</li>
+<li><strong>SPICE_GNUC_VISIBLE</strong>,其定义是<code>#define SPICE_GNUC_VISIBLE __attribute__ ((visibility (&quot;default&quot;)))</code>用于控制符号的可见性,设置为对外可见.spice作为动态链接库给qemu使用,默认隐藏函数对外部的可见性,即外部文件不能调用库里面的函数,有这个声明的函数可以被外部文件调用,即为公共函数.</li>
+</ul>
+
+<h3 id="toc_3">公共函数</h3>
+
+<p>Server的公共函数主要在两个头文件中:</p>
+
+<ul>
+<li><strong>spice.h</strong>:与SpiceServer结构体相关的函数,是qemu调用spice的主要函数</li>
+<li><strong>red_dispatcher.h</strong>:与QXL设备相关的函数</li>
+</ul>
+
+<p>对server的分析,主要围绕这三个公共函数:</p>
+
+<ul>
+<li><strong>spice_server_init</strong>:负责初始化spice_server</li>
+<li><strong>spice_server_add_interface</strong>:给server注册VDI接口</li>
+<li><strong>spice_server_add_client</strong>:处理qemu接收到的客户端连接消息</li>
+</ul>
+
+<h3 id="toc_4">VDI接口</h3>
+
+<p>从图1中可以看到,VDI接口是spice server离qemu最近的一层,qemu主要是通过VDI接口来与spice交互的.<br/>
+VDI接口的定义在spice.h中,结构体内部的函数指针实现都在qemu的源码里面(ui/spice-core.c)</p>
+
+<ul>
+<li><strong>SpiceCoreInterface</strong>:核心接口,用于创建,添加,取消定时和监听事件
+<code>
+SpiceTimer *(*timer_add)(SpiceTimerFunc func, void *opaque);<br/>
+void (*timer_start)(SpiceTimer *timer, uint32_t ms);<br/>
+void (*timer_cancel)(SpiceTimer *timer);<br/>
+void (*timer_remove)(SpiceTimer *timer);<br/>
+SpiceWatch *(*watch_add)(int fd, int event_mask, SpiceWatchFunc func, void *opaque);<br/>
+void (*watch_update_mask)(SpiceWatch *watch, int event_mask);<br/>
+void (*watch_remove)(SpiceWatch *watch);<br/>
+void (*channel_event)(int event, SpiceChannelEventInfo *info);
+</code></li>
+<li><strong>QXLInterface</strong>:QXL设备接口
+<code>
+void (*attache_worker)(QXLInstance *qin, QXLWorker *qxl_worker);<br/>
+void (*set_compression_level)(QXLInstance *qin, int level);<br/>
+void (*set_mm_time)(QXLInstance *qin, uint32_t mm_time);<br/>
+void (*get_init_info)(QXLInstance *qin, QXLDevInitInfo *info);<br/>
+int (*get_command)(QXLInstance *qin, struct QXLCommandExt *cmd);<br/>
+int (*req_cmd_notification)(QXLInstance *qin);<br/>
+void (*release_resource)(QXLInstance *qin, struct QXLReleaseInfoExt release_info);<br/>
+int (*get_cursor_command)(QXLInstance *qin, struct QXLCommandExt *cmd);<br/>
+int (*req_cursor_notification)(QXLInstance *qin);<br/>
+void (*notify_update)(QXLInstance *qin, uint32_t update_id);<br/>
+int (*flush_resources)(QXLInstance *qin);<br/>
+void (*async_complete)(QXLInstance *qin, uint64_t cookie);<br/>
+void (*update_area_complete)(QXLInstance *qin, uint32_t surface_id,struct QXLRect *updated_rects,uint32_t num_updated_rects);<br/>
+void (*set_client_capabilities)(QXLInstance *qin,uint8_t client_present,uint8_t caps[58]);<br/>
+/* returns 1 if the interface is supported, 0 otherwise.<br/>
+ * if monitors_config is NULL nothing is done except reporting the<br/>
+ * return code. */<br/>
+int (*client_monitors_config)(QXLInstance *qin,VDAgentMonitorsConfig *monitors_config);
+</code></li>
+<li><strong>SpiceCharDeviceInterface</strong>:字符型设备接口
+<code>
+void (*state)(SpiceCharDeviceInstance *sin, int connected);<br/>
+int (*write)(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len);<br/>
+int (*read)(SpiceCharDeviceInstance *sin, uint8_t *buf, int len);<br/>
+void (*event)(SpiceCharDeviceInstance *sin, uint8_t event);
+</code></li>
+<li><strong>SpiceKbdInterface</strong>:键盘接口
+<code>
+void (*push_scan_freg)(SpiceKbdInstance *sin, uint8_t frag);<br/>
+uint8_t (*get_leds)(SpiceKbdInstance *sin);
+</code></li>
+<li><strong>SpiceMigrateInterface</strong>:迁移接口
+<code>
+void (*migrate_connect_complete)(SpiceMigrateInstance *sin);<br/>
+void (*migrate_end_complete)(SpiceMigrateInstance *sin);
+</code></li>
+<li><strong>SpiceMouseInterface</strong>:鼠标接口
+<code>
+void (*motion)(SpiceMouseInstance *sin, int dx, int dy, int dz,uint32_t buttons_state);<br/>
+void (*buttons)(SpiceMouseInstance *sin, uint32_t buttons_state);
+</code></li>
+<li><strong>SpiceTabletInterface</strong>:触摸板接口
+<code>
+void (*set_logical_size)(SpiceTabletInstance* tablet, int width, int height);<br/>
+void (*position)(SpiceTabletInstance* tablet, int x, int y, uint32_t buttons_state);<br/>
+void (*wheel)(SpiceTabletInstance* tablet, int wheel_moution, uint32_t buttons_state);<br/>
+void (*buttons)(SpiceTabletInstance* tablet, uint32_t buttons_state);
+</code></li>
+<li><strong>SpicePlaybackInterface</strong>:声音接口</li>
+<li><strong>SpiceRecordInterface</strong>:录音接口</li>
+</ul>
+
+<h3 id="toc_5">Channel</h3>
+
+<p>从图1可以看到,VDI接口之后即是Channel(QXLInterface比较特殊,这个后面再说).<br/>
+Channel的主要作用是使用对应的TCP连接传输消息给客户端,保证其传输的可靠性,其本质是通道,不同的Channel传输不同的消息.</p>
+
+<p>spice中主要有六种Channel:</p>
+
+<ul>
+<li><strong>MainChannel</strong>:与客户端连接的建立和断开有关</li>
+<li><strong>InputsChannel</strong>:跟鼠标,键盘,触摸板的输入有关</li>
+<li><strong>DisplayChannel</strong>:跟图像传输有关</li>
+<li><strong>CursorChannel</strong>:跟鼠标指针的显示有关</li>
+<li><strong>PlaybackChannel</strong>:跟播放宿机的声音有关</li>
+<li><strong>RecordChannel</strong>:跟录制客户端的声音有关</li>
+</ul>
+
+<p>这六种Channel并不是平行的关系,虽然都继承与RedChannel,但是在实现以及逻辑上的作用有很大不同,大致可以分成三类.</p>
+
+<ul>
+<li>Main和Input通道被相应的处理函数控制(reds.c)</li>
+<li>Display和Cursor通道被每个display工作线程使用(red_worker.c)</li>
+<li>Playback和Record通道有它们各自的处理程序(snd_worker.c)</li>
+</ul>
+
+<p>六种Channel中只有DisplayChannel和CursorChannel是单独在工作线程工作的,其他都是在qemu线程工作.</p>
+
+<h3 id="toc_6">Dispatcher</h3>
+
+<p><img src="media/15473672637627/15473878500925.png" alt=""/></p>
+
+<p>前面提到Channel负责传输消息,而Dispatcher则负责处理消息,并且调度Channel.<br/>
+Dispatcher使用socketpair来与外界交互,例如监听事件,传输结果等.<br/>
+这里存在两种Dispatcher</p>
+
+<ul>
+<li><strong>MainDispatcher</strong>:在qemu线程中监听socket事件,处理客户端连接的初始化,建立和断开等,跟MainChannel相关</li>
+<li><strong>RedDispatcher</strong>:在worker线程中监听socket事件,处理QXL设备有关的消息,跟DisplayChannel,CursorChannel相关,图3描述的就是RedDispatcher的工作流程.在图1我们看到QXLInterface与其他接口不一样,与Channel的联系中间多了一个RedDispatcher,它们在单独的Worker线程中工作,提供了QEMU与接收的图像命令处理和渲染过程的独立性</li>
+</ul>
+
+<h3 id="toc_7">RedWorker</h3>
+
+<p>RedWorker可以说是server的核心,80%代码跟它有关,毕竟它负责图像渲染和传输,这是spice最难最复杂的部分,涉及图像的压缩,渲染,局部刷新等核心技术.<br/>
+RedWorker在单独线程上工作,通过QXLInterface与QEMU的QXL设备直接交互,同时控制DisplayChannel,CursorChannel,并且拥有自己的poll事件驱动核心.而其他的Channel都依赖于QEMU线程.</p>
+
+<h2 id="toc_8">总结</h2>
+
+<ul>
+<li>Spice server作为一个库给QEMU调用,用于支持Spice协议.</li>
+<li>server通过使用VDI接口与QEMU交互</li>
+<li>server通过使用Channel与客户端交互</li>
+<li>Dispatcher用于处理消息</li>
+<li>Channel用于传输消息</li>
+<li>图像在RedWorker线程中处理</li>
+</ul>
+
+<p>以上是我分析的server源代码的核心概念,为了方便理解,描述并不全面.其中关于迁移,声音,录音等功能并没有看过,我主要关注server的工作原理,在了解它工作流程之后,就好比有了一张地图,剩下的就是一个个去探险了.<br/>
+当然了,没有代码的分析就是耍流氓.这篇就当是开胃菜,之后,我会结合代码,分析server的启动流程以及工作流程.先挖个坑.</p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%85%B6%E4%BB%96.html'>其他</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="linux-code-tool.html" 
+	        title="Previous Post: Linux 平台下阅读源码的工具">&laquo; Linux 平台下阅读源码的工具</a>
+	    
+	    
+	        <a class="basic-alignment right" href="link-concept.html" 
+	        title="Next Post: 理解链接之链接的基本概念">理解链接之链接的基本概念 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

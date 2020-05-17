@@ -1,0 +1,676 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  ZooKeeper Watcher 和 AsyncCallback 的区别与实现 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">ZooKeeper Watcher 和 AsyncCallback 的区别与实现</h1>
+				<p class="meta"><time datetime="2016-08-22T16:14:23+08:00" pubdate data-updated="true">2016/8/22</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">前言</h2>
+
+<p>初学 Zookeeper 会发现客户端有两种回调方式： Watcher 和 AsyncCallback，而 Zookeeper 的使用是离不开这两种方式的，搞清楚它们之间的区别与实现显得尤为重要。本文将围绕下面几个方面展开</p>
+
+<ul>
+<li>Watcher 和 AsyncCallback 的区别</li>
+<li>Watcher 的回调实现</li>
+<li>AsyncCallback 的回调实现</li>
+<li>IO 与事件处理</li>
+</ul>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">Watcher 和 AsyncCallback 的区别</h2>
+
+<p>我们先通过一个例子来感受一下：</p>
+
+<pre><code class="language-text">zooKeeper.getData(root, new Watcher() {
+            public void process(WatchedEvent event) {
+
+            }
+        }, new AsyncCallback.DataCallback() {
+            public void processResult(int rc, String path, Object ctx, byte[] data, Stat stat) {
+
+            }
+        }, null);
+</code></pre>
+
+<p>可以看到，<code>getData</code>方法可以同时设置两个回调：Watcher 和 AsyncCallback，同样是回调，它们的区别是什么呢？要解决这个问题，我们就得从这两个接口的功能入手。</p>
+
+<ul>
+<li><code>Watcher</code>：<code>Watcher</code>是用于监听节点，session 状态的，比如<code>getData</code>对数据节点<code>a</code>设置了<code>watcher</code>，那么当<code>a</code>的数据内容发生改变时，客户端会收到<code>NodeDataChanged</code>通知，然后进行<code>watcher</code>的回调。</li>
+<li><code>AsyncCallback</code>:<code>AsyncCallback</code>是在以异步方式使用 ZooKeeper API 时，用于处理返回结果的。例如：<code>getData</code>同步调用的版本是：<code>byte[] getData(String path, boolean watch,Stat stat)</code>，异步调用的版本是：<code>void getData(String path,Watcher watcher,AsyncCallback.DataCallback cb,Object ctx)</code>，可以看到，前者是直接返回获取的结果，后者是通过<code>AsyncCallback</code>回调处理结果的。</li>
+</ul>
+
+<h2 id="toc_2">Watcher</h2>
+
+<p>Watcher 主要是通过<code>ClientWatchManager</code>进行管理的。下面是 Watcher 相关类图</p>
+
+<p><img src="media/15473672637206/15473893810555.png" alt=""/></p>
+
+<p>添加 Watcher 的流程如下：<br/>
+<img src="media/15473672637206/15473893928614.png" alt=""/></p>
+
+<h3 id="toc_3">Watcher 的类型</h3>
+
+<p><code>ClientWatchManager</code>中有四种<code>Watcher</code></p>
+
+<ul>
+<li><code>defaultWatcher</code>：创建<code>Zookeeper</code>连接时传入的<code>Watcher</code>，用于监听 session 状态</li>
+<li><code>dataWatches</code>：存放<code>getData</code>传入的<code>Watcher</code></li>
+<li><code>existWatches</code>：存放<code>exists</code>传入的<code>Watcher</code>，如果节点已存在，则<code>Watcher</code>会被添加到<code>dataWatches</code></li>
+<li><code>childWatches</code>：存放<code>getChildren</code>传入的<code>Watcher</code></li>
+</ul>
+
+<p>从代码上可以发现，监听器是存在<code>HashMap</code>中的，<code>key</code>是节点名称<code>path</code>，<code>value</code>是<code>Set&lt;Watcher&gt;</code></p>
+
+<pre><code class="language-text">private final Map&lt;String, Set&lt;Watcher&gt;&gt; dataWatches =
+        new HashMap&lt;String, Set&lt;Watcher&gt;&gt;();
+private final Map&lt;String, Set&lt;Watcher&gt;&gt; existWatches =
+        new HashMap&lt;String, Set&lt;Watcher&gt;&gt;();
+private final Map&lt;String, Set&lt;Watcher&gt;&gt; childWatches =
+        new HashMap&lt;String, Set&lt;Watcher&gt;&gt;();
+
+private volatile Watcher defaultWatcher;
+</code></pre>
+
+<h3 id="toc_4">通知的状态类型与事件类型</h3>
+
+<p>在<code>Watcher</code>接口中，已经定义了所有的状态类型和事件类型</p>
+
+<ul>
+<li><p>KeeperState.Disconnected(0)</p>
+<p>此时客户端处于断开连接状态，和ZK集群都没有建立连接。</p>
+<ul>
+<li><p>EventType.None(-1)</p>
+<p>触发条件：一般是在与服务器断开连接的时候，客户端会收到这个事件。</p></li>
+</ul></li>
+<li><p>KeeperState. SyncConnected(3)</p>
+<p>此时客户端处于连接状态</p>
+<ul>
+<li><p>EventType.None(-1)</p>
+<p>触发条件：客户端与服务器成功建立会话之后，会收到这个通知。</p></li>
+<li><p>EventType. NodeCreated (1)</p>
+<p>触发条件：所关注的节点被创建。</p></li>
+<li><p>EventType. NodeDeleted (2)</p>
+<p>触发条件：所关注的节点被删除。</p></li>
+<li><p>EventType. NodeDataChanged (3)</p>
+<p>触发条件：所关注的节点的内容有更新。注意，这个地方说的内容是指数据的版本<code>号dataVersion</code>。因此，即使使用相同的数据内容来更新，还是会收到这个事件通知的。无论如何，调用了更新接口，就一定会更新<code>dataVersion</code>的。</p></li>
+<li><p>EventType. NodeChildrenChanged (4)</p>
+<p>触发条件：所关注的节点的子节点有变化。这里说的变化是指子节点的个数和组成，具体到子节点内容的变化是不会通知的。</p></li>
+</ul></li>
+<li><p>KeeperState. AuthFailed(4)</p>
+<p>认证失败</p>
+<ul>
+<li>EventType.None(-1)</li>
+</ul></li>
+<li><p>KeeperState. Expired(-112)</p>
+<p>session 超时</p>
+<ul>
+<li>EventType.None(-1)</li>
+</ul></li>
+</ul>
+
+<h3 id="toc_5">materialize 方法</h3>
+
+<p><code>ClientWatchManager</code>只有一个方法，那就是<code>materialize</code>，它根据事件类型<code>type</code>和<code>path</code>返回监听该节点的特定类型的<code>Watcher</code>。</p>
+
+<pre><code class="language-text">public Set&lt;Watcher&gt; materialize(Watcher.Event.KeeperState state,
+    Watcher.Event.EventType type, String path);
+</code></pre>
+
+<p>核心逻辑如下：</p>
+
+<ol>
+<li><code>type == None</code>:返回所有<code>Watcher</code>，也就是说所有的<code>Watcher</code>都会被触发。如果<code>disableAutoWatchReset == true</code>且当前<code>state != SyncConnected</code>，那么还会清空<code>Watcher</code>，意味着移除所有在节点上的<code>Watcher</code>。</li>
+<li><code>type == NodeDataChanged | NodeCreated</code>:返回监听<code>path</code>节点的<code>dataWatches &amp; existWatches</code></li>
+<li><code>type == NodeChildrenChanged</code>:返回监听<code>path</code>节点的<code>childWatches</code></li>
+<li><code>type == NodeDeleted</code>:返回监听<code>path</code>节点的<code>dataWatches | childWatches</code></li>
+</ol>
+
+<p>每次返回都会从<code>HashMap</code>中移除节点对应的<code>Watcher</code>，例如：<code>addTo(dataWatches.remove(clientPath), result);</code>，这就是为什么<code>Watcher</code>是一次性的原因（<code>defaultWatcher</code>除外）。值得注意的是，由于使用的是<code>HashSet</code>存储<code>Watcher</code>，重复添加同一个实例的<code>Watcher</code>也只会被触发一次。</p>
+
+<h2 id="toc_6">AsyncCallback</h2>
+
+<p>Zookeeper 的<code>exists</code>,<code>getData</code>,<code>getChildren</code>方法都有异步的版本，它们与同步方法的区别仅仅在于是否等待响应，底层发送都是通过<code>sendThread</code>异步发送的。下面我们用一幅图来说明：</p>
+
+<p><img src="media/15473672637206/15473894174173.jpg" alt=""/></p>
+
+<p>上面的图展示了同步/异步调用<code>getData</code>的流程，其他方法也是类似的。</p>
+
+<h2 id="toc_7">IO 与事件处理</h2>
+
+<p>Zookeeper 客户端会启动两个常驻线程</p>
+
+<ul>
+<li><code>SendThread</code>：负责 IO 操作，包括发送，接受响应，发送 ping 等。</li>
+<li><code>EventThread</code>：负责处理事件，执行回调函数。</li>
+</ul>
+
+<p><img src="media/15473672637206/15473894283077.jpg" alt=""/></p>
+
+<h3 id="toc_8">readResponse</h3>
+
+<p><code>readResponse</code>是<code>SendThread</code>处理响应的核心函数，核心逻辑如下：</p>
+
+<ol>
+<li>接受服务器的响应，并反序列化出<code>ReplyHeader</code>： 有一个单独的线程<code>SendThread</code>，负责接收服务器端的响应。假设接受到的服务器传递过来的字节流是<code>incomingBuffer</code>，那么就将这个<code>incomingBuffer</code>反序列化为<code>ReplyHeader</code>。</li>
+<li><p>判断响应类型：判断<code>ReplyHeader</code>是<code>Watcher</code>响应还是<code>AsyncCallback</code>响应：<code>ReplyHeader.getXid()</code>存储了响应类型。</p>
+<ol>
+<li>如果是<code>Watcher</code>类型响应：从<code>ReplyHeader</code>中创建<code>WatchedEvent</code>，<code>WatchedEvent</code>里面存储了节点的路径，然后去<code>WatcherManager</code>中找到和这个节点相关联的所有<code>Watcher</code>，将他们写入到<code>EventThread</code>的<code>waitingEvents</code>中。</li>
+<li>如果是<code>AsyncCallback</code>类型响应：从<code>ReplyHeader</code>中读取<code>response</code>，这个<code>response</code>描述了是<code>Exists，setData，getData，getChildren，create.....</code>中的哪一个异步回调。从<code>pendingQueue</code>中拿到<code>Packet</code>，<code>Packet</code>中的<code>cb</code>存储了<code>AsyncCallback</code>，也就是异步 API 的结果回调。最后将<code>Packet</code>写入到<code>EventThread</code>的<code>waitingEvents</code>中。</li>
+</ol></li>
+</ol>
+
+<h3 id="toc_9">processEvent</h3>
+
+<p><code>processEvent</code>是<code>EventThread</code>处理事件核心函数，核心逻辑如下：</p>
+
+<ol>
+<li>如果<code>event instanceof WatcherSetEventPair</code>，取出<code>pair</code>中的<code>Watchers</code>，逐个调用<code>watcher.process(pair.event)</code></li>
+<li>否则<code>event</code>为<code>AsyncCallback</code>，根据<code>p.response</code>判断为哪种响应类型，执行响应的回调<code>processResult</code>。</li>
+</ol>
+
+<p>可见，<code>Watcher</code>和<code>AsyncCallback</code>都是由<code>EventThread</code>处理的，通过<code>processEvent</code>进行区分处理。</p>
+
+<h2 id="toc_10">总结</h2>
+
+<p>Zookeeper 客户端中<code>Watcher</code>和<code>AsyncCallback</code>都是异步回调的方式，但它们回调的时机是不一样的，前者是由服务器发送事件触发客户端回调，后者是在执行了请求后得到响应后客户端主动触发的。它们的共同点在于都需要在获取了服务器响应之后，由<code>SendThread</code>写入<code>EventThread</code>的<code>waitingEvents</code>中，然后由<code>EventThread</code>逐个从事件队列中获取并处理。</p>
+
+<p><em>参考资料</em><br/>
+<a href="http://www.cnblogs.com/francisYoung/p/5225703.html">ZooKeeper个人笔记客户端watcher和AsycCallback回调</a><br/>
+<a href="http://nileader.blog.51cto.com/1381108/954670">【ZooKeeper Notes 13】ZooKeeper Watcher的事件通知类型</a></p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html'>分布式系统</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="zab.html" 
+	        title="Previous Post: Zookeeper ZAB 协议分析">&laquo; Zookeeper ZAB 协议分析</a>
+	    
+	    
+	        <a class="basic-alignment right" href="ThreadLocal-memory-leak.html" 
+	        title="Next Post: 深入分析 ThreadLocal 内存泄漏问题">深入分析 ThreadLocal 内存泄漏问题 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

@@ -1,0 +1,571 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  分布式系统：持续一致性 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">分布式系统：持续一致性</h1>
+				<p class="meta"><time datetime="2019-03-15T09:20:03+08:00" pubdate data-updated="true">2019/3/15</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<p>在分布式系统中，数据复制一般是为了增强系统的可用性或提高性能，但是数据一致性跟系统性能往往是矛盾的，对于数据复制的一致性问题没有最好的解决方法。除非放宽对一致性的要求才能获取特定场景下面的有效解决方法。那么放宽一致性的标准是什么？为此，Yu 和 Vahdat 提出了一种用于衡量不一致性以及表述系统中能够容忍哪些不一致性的模型：持续一致性。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">什么是持续一致性</h2>
+
+<p>在上一篇文章《<a href="consistency-model.html">分布式系统：一致性模型</a>》中可以发现，在数据复制的场景中，数据一致性跟系统性能是矛盾，对数据一致性的要求越高，系统的整体性能越低。对于数据复制的一致性问题没有最好的解决方法。目前实际应用的一致性模型大部分都是通过放宽一致性的要求来提升性能，例如因果一致性放弃了对无因果关系的事件的顺序的一致性，减少了一致性所要付出的代价。<br/>
+日常生活中，一个人是否近视，近视多少度是有统一的标准可以依据的，否则医生没法做出判断。同样的，作为系统的设计者面对一致性问题的时候也需要有一个标准，在性能和一致性之间做出权衡，那么现在问题来了：衡量不一致性的标准是什么？<br/>
+为了解决上面的问题，Yu 和 Vahdat 提出了<strong>一种用于衡量不一致性以及表述系统中能够容忍哪些不一致性的模型：持续一致性。</strong></p>
+
+<p>持续一致性定义了不一致性的三个独立坐标轴：<strong>数值偏差、顺序偏差、新旧偏差</strong>（不一致性的三个衡量标准），这些偏差构成了持续一致性的范围：</p>
+
+<ul>
+<li><strong>数值偏差限制了一个副本有多少未看到的其他副本写操作的权重（权重主要用于衡量不同写操作的重要性，当假设所有写操作权重相等时，权重即写操作的数量；当写操作的对象是数值时，可以用数值的差值作为权重），用于衡量当前副本值跟全局最终值之间的偏差。可以简单理解为未全局更新的写操作数量。</strong>例如在股票市场的价格记录的复制场景中，应用可以指定两个副本间的价格偏差不能超过 0.02 美元，这就是这个系统能够容忍的最大数值偏差。</li>
+<li><strong>顺序偏差限制了一个副本中暂存写操作的数量，用于衡量暂存的写操作在本地副本的顺序与最终提交的写操作全局最终顺序之间的差异。</strong>顺序偏差相对来说比较难理解，首先当允许副本间有差异的时候，那么必定有一个时刻副本会暂存一些写操作，这些写操作在全局提交之后才会成为永久更新，但是这些写操作不一定都能提交成功，它可能会回滚，这意味着副本暂存写操作的顺序跟最终提交的顺序不一定一致。然而暂存的写操作有哪些会回滚导致顺序不一致无法预测，因此为了方便起见，直接取暂存写操作的数量作为顺序偏差，因为这是顺序偏差的上限。这就是顺序偏差的计算规则的由来。举个例子，如果要计算两阶段分布式事务的顺序偏差，那么它的顺序偏差就是准备阶段写操作的数量。</li>
+<li><strong>新旧偏差限制了副本间同步写操作的延迟时间，即消息延迟。</strong>例如在天气预报的数据更新场景中，天气数据的更新不能超过 4 个小时的延迟，这段时间就是天气预报系统能够容忍的新旧偏差。</li>
+</ul>
+
+<p>上面的概念比较难理解，下面举一个简单的例子进行分析。</p>
+
+<h2 id="toc_1">一致性的衡量标准</h2>
+
+<h3 id="toc_2">一致性单元</h3>
+
+<p>在解释不一致性的偏差之前，需要定义一下什么是非一致性。首先，Yu 和 Vahdat 引入一致性单元的概念，<strong>一致性单元表示的是在一致性模型中度量的数据单元。</strong>例如单个股票的价格可以定义为一个一致性单元，也可以把多个股票的价格作为一个一致性单元，这取决于应用场景。</p>
+
+<p>对于每个一致性单元，持续一致性可以用三维向量定义为：<strong>一致性 = (数值偏差，顺序偏差，新旧偏差)</strong>。当所有偏差都为 0 时，就达到了线性一致性的要求。</p>
+
+<p>在给出一致性单元的定义之后，下面对一致性的偏差给出更具体的定义。</p>
+
+<ul>
+<li><strong>数值偏差表示对于一个副本（一致性单元） R，有多少其他副本的更新没有应用到 R 上，并且这些更新的影响是什么。</strong></li>
+<li><strong>顺序偏差表示对于一个副本（一致性单元） R，R 有多少暂存的更新操作</strong></li>
+<li><strong>新旧偏差表示对于一个副本（一致性单元） R，R 有多长时间没有更新数据</strong></li>
+</ul>
+
+<h3 id="toc_3">一致性衡量的例子</h3>
+
+<p><img src="media/15526128038237/15532224355834.jpg" alt=""/></p>
+
+<ul>
+<li>标为灰色的操作表示已提交的更新，白色的操作为未提交的更新</li>
+<li><5,B> 表示对数据 B 执行操作时的向量时钟的值为 5，可简单理解为数据版本</li>
+<li>数值偏差定义为 n(w)
+<ul>
+<li>n = 副本 R 未看到的其他副本的更新数量</li>
+<li>w = 偏差的权重 = 副本 R 一致性单元中所有变量当前值与全局值的数值差值</li>
+</ul></li>
+</ul>
+
+<p>在上面的示例中，可以看到两个副本上有包含 x，y 的一致性单元上。这两个变量的初始值都为 0。注意，由于副本 A 最后的操作是 <23, A>，所以它的向量时钟为 (24, 5)。（参考<a href="vertor-clock.html">向量时钟</a>）</p>
+
+<p>首先来分析顺序偏差，副本 A 从副本 B 接受了 x+=2 的操作，并且提交为永久更新，注意此时副本 B 的 x+=2 的操作并未提交。副本 A 有三个暂存的写操作：<10, A>、<14, A>、<23, A>，所以此时它的顺序偏差为 3。而副本 B 有两个暂存的写操作，所以它的顺序偏差为 2。</p>
+
+<p>接下来分析一下数值偏差，副本 A 还没有看到来自副本 B 的操作是 <16, B>，因此其数值偏差为 1，而权重的计算会稍微难理解一点，首先在这个例子中，由于一致性单元的变量是数值对象，所以这里权重可以定义为数值的差。在当前的图示状态中，假设所有值都会被提交为永久更新，一致性单元的最终值为：x=3，y=5，而此时副本 A 的值为：x=3，y=4，副本 A 的数值偏差权重为：(3+5)-(3+4)=1。同理，副本 B 还没有看到来自副本 A 的操作有：<10, A>、<14, A>、<23, A>，因此其数值偏差为 3，副本 B 的值为：x=2，y=1，其数值偏差权重为 (3+5)-(2+1)=5。综上，<strong>数值偏差的计算比较直观，就是副本的当前未看到其他副本的更新数量，而权重相对比较难理解，它反映的是当前副本一致性单元的快照跟全局快照的数值差值。</strong>值得注意的是，权重的计算跟数据的类型息息相关，主要取决于系统中对于数据更新权重的定义，像数值类型就可以用差值来衡量，像字符类型就没法用这种方式来计算，一种可行的方案就是认为权重都相等，此时权重就等于写操作的数量。</p>
+
+<p>最后分析一下新旧偏差，上面的例子中没有体现出新旧偏差，但是前面已经举了天气预报的例子。实际上新旧偏差是相对好理解的，在分布式系统中消息传递是有延迟的，而这个延迟的时间就是我们所说的新旧偏差。有那么一段时间对 X 的数据在副本间是不一致的，因为数据传输过程中有延迟，所以新旧偏差在除了线性一致性模型之外一致性模型都是存在的。</p>
+
+<p>通过上面的分析可以发现，限制顺序偏差可以通过控制单个副本的暂存更新数量完成，但是要限制数值偏差和新旧偏差则需要依赖所有副本的协调。</p>
+
+<h2 id="toc_4">总结</h2>
+
+<p>持续一致性模型给出了一种用于衡量不一致性以及表述系统中能够容忍哪些不一致性的标准，包括顺序偏差、数值偏差、新旧偏差。持续一致性就像是一把尺子，给出了度量分布式系统中不一致性的标准和方法。它的最大特点是从副本的视角出发给出了一致性衡量的方法，而不是笼统从整个系统去讨论一致性，具有更强的可操作性。</p>
+
+<h2 id="toc_5">参考资料</h2>
+
+<ul>
+<li>《分布式系统原理与范型》</li>
+<li><a href="https://www.usenix.org/publications/library/proceedings/osdi2000/full_papers/yuvahdat/yuvahdat.pdf">Design and evaluation of a continuous consistency model for replicated services</a></li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html'>分布式系统</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="cap-theorem.html" 
+	        title="Previous Post: 分布式系统：CAP 理论的前世今生">&laquo; 分布式系统：CAP 理论的前世今生</a>
+	    
+	    
+	        <a class="basic-alignment right" href="consistency-protocol.html" 
+	        title="Next Post: 分布式系统：一致性协议">分布式系统：一致性协议 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

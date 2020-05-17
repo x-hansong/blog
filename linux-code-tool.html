@@ -1,0 +1,669 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Linux 平台下阅读源码的工具 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Linux 平台下阅读源码的工具</h1>
+				<p class="meta"><time datetime="2015-08-24T16:14:23+08:00" pubdate data-updated="true">2015/8/24</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">前言</h2>
+
+<p>看源代码是一个程序员必须经历的事情,也是可以提升能力的一个捷径.个人认为: <strong>要完全掌握一个软件的方法只有阅读源码</strong><br/>
+在Windows下有sourceinsight这个源码阅读软件(虽然我没用过,但是网上评价还不错),由于我是个Linuxer,并不喜欢用Windows,所以自然是选择在Linux下阅读源码的工具了.<br/>
+下面我将逐一介绍在Linux下阅读源码的工具.</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">vim+ctags+cscope</h2>
+
+<p>源码阅读三剑客.vim配合ctags和cscope,足以在源代码里面自由翱翔,在函数和变量间自由跳转.</p>
+
+<h3 id="toc_2">安装</h3>
+
+<pre><code class="language-text">sudo apt-get install vim ctags cscope
+</code></pre>
+
+<h3 id="toc_3">使用</h3>
+
+<h4 id="toc_4">vim</h4>
+
+<p>vim的使用就略过了,网上资料很多,不是一篇文章能说完的,未来我可能会写一篇vim的使用心得<br/>
+推荐一篇<a href="http://coolshell.cn/articles/5426.html">简明 Vim 练级攻略</a>,看完就差不多会用了.</p>
+
+<h4 id="toc_5">ctags</h4>
+
+<p>ctags的使用很简单,vim已经内置了对ctags的支持<br/>
+首先在源代码根目录执行<code>ctags -R</code>,递归的为源码建立tags,在根目录会生成一个Tags的文件,存放各种函数和变量的tag,便于跳转</p>
+
+<ul>
+<li>使光标在函数或变量上,<code>Ctrl + ]</code>即可跳转到其定义处</li>
+<li><code>Ctrl + t</code>可以回到你跳转之前的位置</li>
+</ul>
+
+<p>对于简单的代码,ctags就够用了,但是对于比较复杂的代码来说,ctags显得有点力不从心,于是,下一位剑客就登场了.</p>
+
+<h4 id="toc_6">cscope</h4>
+
+<p>vim同样内置了对cscope的支持.<br/>
+首先在源代码根目录执行<code>cscope -Rbq</code>,就会生成cscope.out文件(索引数据库)</p>
+
+<ul>
+<li>-R: 在生成索引文件时，搜索子目录树中的代码</li>
+<li>-b: 只生成索引文件，不进入cscope的界面</li>
+<li>-q: 生成cscope.in.out和cscope.po.out文件，加快cscope的索引速度</li>
+</ul>
+
+<p>然后在vim中执行<code>:cs add cscope.out</code>,添加数据库.<br/>
+接下来就可以使用<code>:cs find x var</code>进行查找.(x代表查询选项,var表示要查找的函数或变量名)<br/>
+cscope支持8种查询方式</p>
+
+<ul>
+<li>s: 查找C语言符号，即查找函数名、宏、枚举值等出现的地方</li>
+<li>g: 查找函数、宏、枚举等定义的位置，类似ctags所提供的功能</li>
+<li>d: 查找本函数调用的函数</li>
+<li>c: 查找调用本函数的函数</li>
+<li>t: 查找指定的字符串</li>
+<li>e: 查找egrep模式，相当于egrep功能，但查找速度快多了</li>
+<li>f: 查找并打开文件，类似vim的find功能</li>
+<li>i: 查找包含本文件的文件</li>
+</ul>
+
+<p>例如，我们想在vim 7.0的源代码中查找调用do_cscope()函数的函数，我们可以输入：”:cs find c do_cscope“，回车后发现没有找到匹配的功能，可能并没有函数调用do_cscope()。我们再输入”:cs find s do_cscope“，查找这个C符号出现的位置，现在vim列出了这个符号出现的所有位置。</p>
+
+<p>每次都有输入<code>cs find</code>来查找数据是不是有点麻烦,有没有更方便的方法呢.当然有,vim的神奇之处在其可定制性.提供一份cscope的配置,将其放在.vimrc中即可.</p>
+
+<pre><code class="language-text">&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;
+&quot; cscope setting
+&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;&quot;
+if has(&quot;cscope&quot;)
+  set csprg=/usr/bin/cscope
+  set csto=1
+  set cst
+  set nocsverb
+  &quot; add any database in current directory
+  if filereadable(&quot;cscope.out&quot;)
+      cs add cscope.out
+  endif
+  set csverb
+endif
+
+nmap &lt;C-@&gt;s :cs find s &lt;C-R&gt;=expand(&quot;&lt;cword&gt;&quot;)&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;g :cs find g &lt;C-R&gt;=expand(&quot;&lt;cword&gt;&quot;)&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;c :cs find c &lt;C-R&gt;=expand(&quot;&lt;cword&gt;&quot;)&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;t :cs find t &lt;C-R&gt;=expand(&quot;&lt;cword&gt;&quot;)&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;e :cs find e &lt;C-R&gt;=expand(&quot;&lt;cword&gt;&quot;)&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;f :cs find f &lt;C-R&gt;=expand(&quot;&lt;cfile&gt;&quot;)&lt;CR&gt;&lt;CR&gt;
+nmap &lt;C-@&gt;i :cs find i ^&lt;C-R&gt;=expand(&quot;&lt;cfile&gt;&quot;)&lt;CR&gt;$&lt;CR&gt;
+nmap &lt;C-@&gt;d :cs find d &lt;C-R&gt;=expand(&quot;&lt;cword&gt;&quot;)&lt;CR&gt;&lt;CR&gt;
+</code></pre>
+
+<p>上面的配置即把<code>Ctrl + @</code>作为<code>:cs find</code>的快捷键,也就是说要查找某个函数名,只需要把光标放在函数名上,按下<code>Ctrl + @ + s</code>即可,简直不能更方便.而且你可以自己修改配置,映射到自己觉得舒服的快捷键上.</p>
+
+<p>本着不重复造轮子的原则,我就简单的写了cscope的基本用法,其实基本上就够用了,进阶的用法参考这篇文章<a href="http://easwy.com/blog/archives/advanced-vim-skills-cscope/">vi/vim使用进阶: 程序员的利器 – cscope</a></p>
+
+<h2 id="toc_7">doxygen</h2>
+
+<p>上面我们讲的是用vim来查看源代码,但是面对几十万代码的时候,想要看清楚各个结构体之间的关系就不是vim能够做到的了.这时候我们就需要doxygen来帮手了.</p>
+
+<blockquote>
+<p>Doxygen is the de facto standard tool for generating documentation from annotated C++ sources, but it also supports other popular programming languages such as C, Objective-C, C#, PHP, Java, Python, IDL (Corba, Microsoft, and UNO/OpenOffice flavors), Fortran, VHDL, Tcl, and to some extent D.</p>
+</blockquote>
+
+<p>doxygen是一个根据源代码生成文档的工具,这货虽然主要是给C++用的,但是它也对其他语言有支持.<br/>
+安装直接去<a href="http://www.stack.nl/%7Edimitri/doxygen/index.html">官网</a>,按照其指导安装即可<br/>
+下面介绍一下doxygen的使用方法.</p>
+
+<p>首先,在源代码根目录执行<code>doxygen -g</code>,然后在根目录就会突然冒出一个名为<strong>Doxyfile</strong>的文件,这个文件就是doxygen生成文档的配置文件了.<br/>
+那么,重点来了,怎么配置这个文件,默认的配置是根据代码生成各个结构体的成员数据,然后生成html和latex两个文件夹,分别是网页和latex文档.<br/>
+说实话,默认生成的文档并没有什么卵用,除了让你更方便的看到各个结构体的组成成员.我们关心的是各个结构体之间的关系,这是针对C而言的.对与C++和java而言,关心的是类之间的关系.所以,默认的配置肯定是要修改的.至于怎么改,看<a href="http://www.stack.nl/%7Edimitri/doxygen/manual/index.html">官方文档</a>.</p>
+
+<p>当然了,如果这篇文章唯一给出的建议就是看文档,那这篇文章有什么意义呢.大家都知道看文档可以解决问题,但是时间成本太高,而且是英文的.写这篇文章的目的是分享自己学习得到的经验,让大家少走弯路,如果不能解决你的问题,只能去看文档了</p>
+
+<p>接下来我根据我自己看文档用到的配置跟大家解释一下.<br/>
+首先,Doxygen里面的配置可谓又臭又长,你绝对不会有读完它的欲望.所以我给出几个关键的配置项,到时候搜索它修改即可</p>
+
+<ul>
+<li>这是针对各种语言优化输出的选项,默认都是NO,因为它不清楚你用的是什么语言(话说看一下后缀不就知道了吗...)
+<code>
+OPTIMIZE_OUTPUT_FOR_C<br/>
+OPTIMIZE_OUTPUT_JAVA<br/>
+OPTIMIZE_FOR_FORTRAN<br/>
+OPTIMIZE_OUTPUT_VHDL
+</code></li>
+<li>这个是生成文档的类型的选项,默认生成html和latex,共支持六种类型的文档,每种类型的生成配置也是很多,具体根据需要配置
+<code>
+GENERATE_HTML<br/>
+GENERATE_LATEX<br/>
+GENERATE_RTF<br/>
+GENERATE_XML<br/>
+GENERATE_DOCBOOK<br/>
+GENERATE_MAN
+</code></li>
+<li><p>关于生成图像的选项.doxygen使用dot这个工具来绘图,所以要先执行<code>sudo apt-get install graphviz</code>安装dot.在设置好这个绘图选项之后,doxygen就会生成各个结构体的关系,对于类会生成函数调用关系(我没试过,因为只试过C的).</p>
+<pre><code class="language-text">HAVE_DOT (一定要置为YES,后面的选项都依赖这个)
+DOT_NUM_THREADS (使用dot绘图的线程数量,越多越快,我一般是设置跟cpu的核数一样)<br/>
+//以下两个选项跟生成函数调用关系图有关<br/>
+CALL_GRAPH<br/>
+CALLER_GRAPH<br/>
+EXTRACT_ALL //把所有实体都输出到文档,不管它是否能被描述<br/>
+EXTRACT_STATIC //把静态变量也输出到文档中<br/>
+EXTRACT_PRIVATE //把私有变量也输出到文档中
+</code></pre>
+<p>给一个结构体关系图,就是doxygen生成的.<br/>
+<img src="media/15473672638044/15473881745128.png" alt=""/></p></li>
+<li><p>关于源码搜索路径,默认是搜索本目录的源代码,大部分情况下源码是分布在各个子目录的.</p>
+<pre><code class="language-text">RECURSIVE = YES
+</code></pre>
+<p>默认RECURSIVE是NO,所以记得把它设置为YES,递归搜索子目录. <u>感谢soglad的留言提醒</u></p></li>
+</ul>
+
+<p>最后一步,在源码根目录执行<code>doxygen</code>,它会自动找到Doxygen配置,根据配置生成文档.</p>
+
+<h2 id="toc_8">gdb</h2>
+
+<p>最后一个工具,大名鼎鼎的gdb.分析源码执行流程的最好方式的是运行它,然后一步步执行.用来观察它最好的工具当然是gdb了(针对C/C++).<br/>
+gdb的使用我也不打算造轮子,直接参考<a href="http://wiki.ubuntu.org.cn/index.php?title=%E7%94%A8GDB%E8%B0%83%E8%AF%95%E7%A8%8B%E5%BA%8F&amp;variant=zh-hans">用GDB调试程序</a>,这篇写的很好,通俗易懂.</p>
+
+<h2 id="toc_9">后记</h2>
+
+<p>以上就是我在阅读源码的时候使用的Linux工具,三剑客<strong>vim+ctags+cscope</strong>,两板斧<strong>doxygen gdb</strong>,足以驰骋源代码的江湖.</p>
+
+<p>以上工具,vim和gdb是最难学的,学习曲线很陡峭.但是学好之后,就能守得云开见月明.</p>
+
+<p><u>参考文章,感谢帮助</u><br/>
+<a href="http://easwy.com/blog/archives/advanced-vim-skills-cscope/">vi/vim使用进阶: 程序员的利器 – cscope</a></p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%B7%A5%E5%85%B7.html'>工具</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="ucore-1.html" 
+	        title="Previous Post: ucore实验之操作系统启动流程">&laquo; ucore实验之操作系统启动流程</a>
+	    
+	    
+	        <a class="basic-alignment right" href="spice-server-1.html" 
+	        title="Next Post: spice源码分析之server(1)">spice源码分析之server(1) &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

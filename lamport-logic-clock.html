@@ -1,0 +1,623 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  分布式系统：Lamport 逻辑时钟 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">分布式系统：Lamport 逻辑时钟</h1>
+				<p class="meta"><time datetime="2019-01-31T11:15:40+08:00" pubdate data-updated="true">2019/1/31</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<p>分布式系统解决了传统单体架构的单点问题和性能容量问题，另一方面也带来了很多的问题，其中一个问题就是多节点的时间同步问题：不同机器上的物理时钟难以同步，导致无法区分在分布式系统中多个节点的事件时序。1978年Lamport在《<a href="http://research.microsoft.com/users/lamport/pubs/time-clocks.pdf">Time, Clocks and the Ordering of Events in a Distributed System</a>》中提出了逻辑时钟的概念，来解决分布式系统中区分事件发生的时序问题。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">什么是逻辑时钟</h2>
+
+<p>逻辑时钟是为了区分现实中的物理时钟提出来的概念，一般情况下我们提到的时间都是指物理时间，但实际上很多应用中，只要所有机器有相同的时间就够了，这个时间不一定要跟实际时间相同。更进一步，如果两个节点之间不进行交互，那么它们的时间甚至都不需要同步。<strong>因此问题的关键点在于节点间的交互要在事件的发生顺序上达成一致，而不是对于时间达成一致。</strong></p>
+
+<p>综上，<strong>逻辑时钟指的是分布式系统中用于区分事件的发生顺序的时间机制。</strong>从某种意义上讲，现实世界中的物理时间其实是逻辑时钟的特例。</p>
+
+<h2 id="toc_1">为什么需要逻辑时钟</h2>
+
+<p>时间是在现实生活中是很重要的概念，有了时间我们就能比较事情发生的先后顺序。如果是单个计算机内执行的事务，由于它们共享一个计时器，所以能够很容易通过时间戳来区分先后。同理在分布式系统中也通过时间戳的方式来区分先后行不行？</p>
+
+<p>答案是NO，因为在分布式系统中的不同节点间保持它们的时钟一致是一件不容易的事情。因为每个节点的CPU都有自己的计时器，而不同计时器之间会产生时间偏移，最终导致不同节点上面的时间不一致。也就是说如果A节点的时钟走的比B节点的要快1分钟，那么即使B先发出的消息（附带B的时间戳），A的消息（附带A的时间戳）在后一秒发出，A的消息也会被认为先于B发生。</p>
+
+<p>那么是否可以通过某种方式来同步不同节点的物理时钟呢？答案是有的，NTP就是常用的时间同步算法，但是即使通过算法进行同步，总会有误差，这种误差在某些场景下（金融分布式事务）是不能接受的。</p>
+
+<p>因此，<strong>Lamport提出逻辑时钟就是为了解决分布式系统中的时序问题，即如何定义a在b之前发生。</strong>值得注意的是，并不是说分布式系统只能用逻辑时钟来解决这个问题，如果以后有某种技术能够让不同节点的时钟完全保持一致，那么使用物理时钟来区分先后是一个更简单有效的方式。</p>
+
+<h2 id="toc_2">如何实现逻辑时钟</h2>
+
+<h3 id="toc_3">时序关系与相对论</h3>
+
+<p>通过前面的讨论我们知道通过物理时钟（即绝对参考系）来区分先后顺序的前提是所有节点的时钟完全同步，但目前并不现实。因此，在没有绝对参考系的情况下，在一个分布式系统中，你无法判断事件A是否发生在事件B之前，除非A和B存在某种依赖关系，即分布式系统中的事件仅仅是部分有序的。</p>
+
+<p>上面的结论跟狭义相对论有异曲同工之妙，在狭义相对论中，不同观察者在同一参考系中观察到的事件先后顺序是一致的，但是在不同的观察者在不同的参考系中对两个事件谁先发生可能具有不同的看法。当且仅当事件A是由事件B引起的时候，事件A和B之间才存在一个先后关系。<strong>两个事件可以建立因果关系的前提是：两个事件之间可以用等于或小于光速的速度传递信息。</strong> <u>值得注意的是这里的因果关系指的是时序关系，即时间的前后，并不是逻辑上的原因和结果。</u></p>
+
+<p>那么是否我们可以参考狭义相对论来定义分布式系统中两个事件的时序呢？在分布式系统中，网络是不可靠的，所以我们去掉<strong>可以</strong>和<strong>速度</strong>的约束，可以得到<strong>两个事件可以建立因果（时序）关系的前提是：两个事件之间是否发生过信息传递。</strong>在分布式系统中，进程间通信的手段（共享内存、消息发送等）都属于信息传递，如果两个进程间没有任何交互，实际上他们之间内部事件的时序也无关紧要。但是有交互的情况下，特别是多个节点的要保持同一副本的情况下，事件的时序非常重要。</p>
+
+<h3 id="toc_4">Lamport 逻辑时钟</h3>
+
+<p>分布式系统中按是否存在节点交互可分为三类事件，一类发生于节点内部，二是发送事件，三是接收事件。注意：<strong>以下文章中提及的时间戳如无特别说明，都指的是Lamport 逻辑时钟的时间戳，不是物理时钟的时间戳</strong></p>
+
+<blockquote>
+<p>逻辑时钟定义</p>
+
+<p>Clock Condition.对于任意事件\(a\), \(b\)：如果\(a \to b\)（\(\to\)表示a先于b发生），那么\(C(a)&lt; C(b)\), 反之不然, 因为有可能是并发事件<br/>
+C1.如果\(a\)和\(b\)都是进程\(P_i\)里的事件，并且\(a\)在\(b\)之前，那么\(C_i(a) &lt; C_i(b)\)<br/>
+C2.如果\(a\)是进程\(P_i\)里关于某消息的发送事件，\(b\)是另一进程\(P_j\)里关于该消息的接收事件，那么\(C_i(a) &lt; C_j(b)\)</p>
+</blockquote>
+
+<p>Lamport 逻辑时钟原理如下：<br/>
+<img src="media/15489045404752/15489326333600.jpg" alt="图1"/></p>
+
+<ol>
+<li>每个事件对应一个Lamport时间戳，初始值为0</li>
+<li>如果事件在节点内发生，本地进程中的时间戳加1</li>
+<li>如果事件属于发送事件，本地进程中的时间戳加1并在消息中带上该时间戳</li>
+<li>如果事件属于接收事件，本地进程中的时间戳 = Max(本地时间戳，消息中的时间戳) + 1</li>
+</ol>
+
+<p>假设有事件\(a、b，C(a)、C(b)\)分别表示事件\(a、b\)对应的Lamport时间戳，如果\(a\)发生在\(b\)之前(happened before)，记作 \(a \to b\)，则有\(C(a) &lt; C(b)\)，例如图1中有 \(C1 \to B1\)，那么 \(C(C1) &lt; C(B1)\)。通过该定义，事件集中Lamport时间戳不等的事件可进行比较，我们获得事件的偏序关系(partial order)。<strong>注意：如果\(C(a) &lt; C(b)\)，并不能说明\(a \to b\)，也就是说\(C(a) &lt; C(b)\)是\(a \to b\)的必要不充分条件</strong></p>
+
+<p>如果\(C(a) = C(b)\)，那\(a、b\)事件的顺序又是怎样的？值得注意的是当\(C(a) = C(b)\)的时候，它们肯定不是因果关系，所以它们之间的先后其实并不会影响结果，我们这里只需要给出一种确定的方式来定义它们之间的先后就能得到全序关系。<strong>注意：Lamport逻辑时钟只保证因果关系（偏序）的正确性，不保证绝对时序的正确性。</strong></p>
+
+<p>一种可行的方式是利用给进程编号，利用进程编号的大小来排序。假设\(a、b\)分别在节点\(P、Q\)上发生，\(P_i、Q_j\)分别表示我们给\(P、Q\)的编号，如果 \(C(a) = C(b)\) 并且 \(P_i &lt; Q_j\)，同样定义为\(a\)发生在\(b\)之前，记作 \(a \Rightarrow b\)（全序关系）。假如我们对图1的\(A、B、C\)分别编号\(A_i = 1、B_j = 2、C_k = 3\)，因 \(C(B4) = C(C3)\) 并且 \(B_j &lt; C_k\)，则 \(B4 \Rightarrow C3\)。</p>
+
+<p>通过以上定义，我们可以对所有事件排序，获得事件的全序关系(total order)。上图例子，我们可以进行排序：\(C1 \Rightarrow B1 \Rightarrow B2 \Rightarrow A1 \Rightarrow B3 \Rightarrow A2 \Rightarrow C2 \Rightarrow B4 \Rightarrow C3 \Rightarrow A3 \Rightarrow B5 \Rightarrow C4 \Rightarrow C5 \Rightarrow A4\)</p>
+
+<p>观察上面的全序关系你可以发现，从时间轴来看\(B5\)是早于\(A3\)发生的，但是在全序关系里面我们根据上面的定义给出的却是\(A3\)早于\(B5\)，可以发现Lamport逻辑时钟是一个正确的算法，即有因果关系的事件时序不会错，但并不是一个公平的算法，即没有因果关系的事件时序不一定符合实际情况。</p>
+
+<h2 id="toc_5">如何使用逻辑时钟解决分布式锁问题</h2>
+
+<p>上面的分析过于理论，下面我们来尝试使用逻辑时钟来解决分布式锁问题。</p>
+
+<p>分布式锁问题本质上是对于共享资源的抢占问题，我们先对问题进行定义：</p>
+
+<ol>
+<li>已经获得资源授权的进程，必须在资源分配给其他进程之前释放掉它；</li>
+<li>资源请求必须按照请求发生的顺序进行授权；</li>
+<li>在获得资源授权的所有进程最终释放资源后，所有的资源请求必须都已经被授权了。</li>
+</ol>
+
+<p>首先我们假设，<strong>对于任意的两个进程\(P_i\)和\(P_j\)，它们之间传递的消息是按照发送顺序被接收到的, 并且所有的消息最终都会被接收到。</strong><br/>
+每个进程会维护一个它自己的对其他所有进程都不可见的请求队列。我们假设该请求队列初始时刻只有一个消息\((T_0:P_0)\)资源请求，\(P_0\)代表初始时刻获得资源授权的那个进程，\(T_0\)小于任意时钟初始值 </p>
+
+<ol>
+<li>为请求该项资源，进程\(P_i\)发送一个\((T_m:P_i)\)资源请求（请求锁）消息给其他所有进程，并将该消息放入自己的请求队列，在这里\(T_m\)代表了消息的时间戳</li>
+<li>当进程\(P_j\)收到\((T_m:P_i)\)资源请求消息后，将它放到自己的请求队列中，并发送一个带时间戳的确认消息给\(P_i\)。(注：如果\(P_j\)已经发送了一个时间戳大于\(T_m\)的消息，那就可以不发送)</li>
+<li>释放该项资源（释放锁）时，进程\(P_i\)从自己的消息队列中删除所有的\((T_m:P_i)\)资源请求，同时给其他所有进程发送一个带有时间戳的\(P_i\)资源释放消息</li>
+<li>当进程\(P_j\)收到\(P_i\)资源释放消息后，它就从自己的消息队列中删除所有的\((T_m:P_i)\)资源请求</li>
+<li>当同时满足如下两个条件时，就将资源分配（锁占用）给进程\(P_i\)：
+<ul>
+<li>按照全序关系排序后，\((T_m:P_i)\)资源请求排在它的请求队列的最前面</li>
+<li>\(i\)已经从所有其他进程都收到了时间戳&gt;\(T_m\)的消息、</li>
+</ul></li>
+</ol>
+
+<p>下面我会用图例来说明上面算法运作的过程，假设我们有3个进程，根据算法说明，初始化状态各个进程队列里面都是(0:0)状态，此时锁属于P0。<br/>
+<img src="media/15489045404752/15490064189797.jpg" alt="初始状态"/></p>
+
+<p>接下来P1会发出请求资源的消息给所有其他进程，并且放到自己的请求队列里面，根据逻辑时钟算法，P1的时钟走到1，而接受消息的P0和P2的时钟为消息时间戳+1。<br/>
+<img src="media/15489045404752/15490066250546.jpg" alt="请求资源"/></p>
+
+<p>收到P1的请求之后，P0和P2要发送确认消息给P1表示自己收到了。注意，由于目前请求队列里面第一个不是P1发出的请求，所以此时锁仍属于P0。但是由于收到了确认消息，此时P1已经满足了获取资源的第一个条件：<strong>P1已经收到了其他所有进程时间戳大于1的消息。</strong><br/>
+<img src="media/15489045404752/15498551753772.jpg" alt="返回确认"/></p>
+
+<p>假设P0此时释放了锁（这里为了方便演示做了这个假设，实际上P0什么时候释放资源都可以，算法都是正确的，读者可自行推导），发送释放资源的消息给P1和P2，P1和P2收到消息之后把请求(0:0)从队列里面删除。<br/>
+<img src="media/15489045404752/15498552492316.jpg" alt=""/></p>
+
+<p>当P0释放了资源之后，我们发现P1满足了获取资源的两个条件：<strong>它的请求在队列最前面；P1已经收到了其他所有进程时间戳大于1的消息。</strong>也就是说此时P1就获取到了锁。</p>
+
+<p>值得注意的是，这个算法并不是容错的，有一个进程挂了整个系统就挂了，因为需要等待所有其他进程的响应，同时对网络的要求也很高。</p>
+
+<h2 id="toc_6">总结</h2>
+
+<p>如果你之前看过2PC，Paxos之类的算法，相信你看到最后一定会有一种似曾相识的感觉。实际上，Lamport提出的逻辑时钟可以说是分布式一致性算法的开山鼻祖，后续的所有分布式算法都有它的影子。我们不能想象现实世界中没有时间，而逻辑时钟定义了分布式系统里面的时间概念，解决了分布式系统中区分事件发生的时序问题。</p>
+
+<h2 id="toc_7">参考资料</h2>
+
+<ul>
+<li><a href="http://research.microsoft.com/users/lamport/pubs/time-clocks.pdf">Time, Clocks and the Ordering of Events in a Distributed System</a></li>
+<li><a href="https://www.zhihu.com/question/30084741/answer/71115362">将物理与计算机结合可以做些什么？</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/23278509">分布式系统理论基础 - 时间、时钟和事件顺序</a></li>
+<li><a href="http://www.cnblogs.com/fxjwind/archive/2013/04/13/3017892.h$T_m$l">全序, 分布式一致性的本质</a></li>
+<li><a href="http://betathoughts.blogspot.com/2007/06/brief-history-of-consensus-2pc-and.html">A brief history of Consensus, 2PC and Transaction Commit</a></li>
+<li><a href="http://ju.outofmemory.cn/entry/47601">我对Lamport Logical Clock的理解</a></li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html'>分布式系统</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="vertor-clock.html" 
+	        title="Previous Post: 分布式系统：向量时钟">&laquo; 分布式系统：向量时钟</a>
+	    
+	    
+	        <a class="basic-alignment right" href="high-quality-code.html" 
+	        title="Next Post: 编写高质量代码的思考">编写高质量代码的思考 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

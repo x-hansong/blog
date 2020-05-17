@@ -1,0 +1,705 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Java 日志框架冲突问题排查与总结 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Java 日志框架冲突问题排查与总结</h1>
+				<p class="meta"><time datetime="2019-11-27T19:44:15+08:00" pubdate data-updated="true">2019/11/27</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">前言</h2>
+
+<p>Java 有很多的日志框架可以选择，当同一个项目中出现多种日志框架时就很容易出现日志框架冲突的问题，导致日志打印不出来。本文将以一次典型的日志冲突排查问题为例，提供排查步骤和思路，最后分析日志框架冲突的原因。</p>
+
+<p>一般行文思路都是先讲 Why，再讲 How，这里我颠倒了，因为一般遇到问题的时候我们对问题背后的根本原因是一无所知的，如果我们已经知道问题的原因，那么问题也就迎刃而解了。因此我希望先复现我当时在对日志框架了解不多的情况下排查问题的思路和步骤，如何在面对未知问题找到破题思路是非常重要的技能。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">一次典型的日志冲突排查</h2>
+
+<h3 id="toc_2">问题背景</h3>
+
+<p>在 A 工程中，日志框架配置选用了 Log4j2，master 分支上日志打印正常，但开发分支增加了代码之后日志打印不出来。项目的依赖中包含了 Log4j2、Logback 等日志框架。</p>
+
+<h3 id="toc_3">排查思路与过程</h3>
+
+<p>排查问题的时候首先必须要有明确的思路，即大胆假设，小心求证，不能像无头苍蝇一样乱试。从问题的现象看，直觉上可以得出几个假设：</p>
+
+<ol>
+<li>服务器环境有问题</li>
+<li>开发分支的 Log4j2 配置有问题</li>
+</ol>
+
+<p>接下来就是验证假设，首先多申请几台机器部署项目分支，发现问题仍然存在，可以排除第一个假设。其次找到另一个工程 B 跟 A 工程对比 Log4j2 的配置，也没有发现明细的差异，可以排除第二个假设。</p>
+
+<p>在已有假设都验证失败的情况下，需要收集更多的信息作出判断，接下来就是要用对照实验收集信息。于是我分别断点了 A 和 B 两个工程，观察它们日志实体的类型是否一致。结果发现两者的日志实体类型不一样，A 的日志实现是 Logback，B 的日志实现是 Log4j2，很明显 A 打印不出日志是因为日志实体不对，但是两者都是用的同一个 LoggerFactory 创建 Logger 的。从对照实验的结果来看，可以得出一个假设：<strong>依赖冲突导致了 A 运行时使用日志实体不是 Log4j2。</strong></p>
+
+<p>至此我们已经找到了问题的大致方向，接下来就是要排包。排包一般有两种思路：</p>
+
+<ol>
+<li>暴力求解：把所有可能冲突的日志包排掉，一个个试。</li>
+<li>精准爆破：利用类加载的信息判断运行时加载的具体是哪个 jar</li>
+</ol>
+
+<p>暴力求解的方式太花费时间了，所以我用的第二种方式。</p>
+
+<p>获取日志实体的方式如下：</p>
+
+<pre><code class="language-text">    private static final Logger LOGGER = LoggerFactory
+            .getLogger(xxx.class);
+</code></pre>
+
+<p>LoggerFactory 的代码如下：</p>
+
+<pre><code class="language-text">public abstract class LoggerFactory extends LogFactory {
+
+    public static Logger getLogger(Class clazz) {
+        ClassLoader oldTccl = Thread.currentThread().getContextClassLoader();
+
+        try {
+            Thread.currentThread().setContextClassLoader(LoggerFactory.class.getClassLoader());
+            return getLogger(getLog(clazz));
+        } finally {
+            Thread.currentThread().setContextClassLoader(oldTccl);
+        }
+    }
+}
+</code></pre>
+
+<p>从代码上可以发现，<code>getLog</code>方法是来自父类<code>LogFactory</code>，当我去尝试获取<code>LogFactory</code>的实现时候，发现竟然有 3 个 jar 中都有同样包名的<code>LogFactory</code>实现。于是我断点了 A 和 B 工程的代码，用 IDEA 的运行代码功能执行以下命令获取<code>LogFactory</code>的加载信息。</p>
+
+<p><img src="media/15748550557497/15750963654649.jpg" alt="" style="width:818px;"/></p>
+
+<p>结果发现 B 工程使用是<code>spring-jcl</code>，A 使用的是<code>jcl-over-slf4j</code>，然后排除掉 A 中<code>jcl-over-slf4j</code>，问题解决。</p>
+
+<p>上面的排查过程中，关键的地方有两点：</p>
+
+<ol>
+<li>定位到问题的根源是类加载冲突，确定排查方向。</li>
+<li>通过断点获取冲突类的加载信息，快速定位到冲突的 jar。</li>
+</ol>
+
+<h2 id="toc_4">为什么日志框架会冲突</h2>
+
+<p>问题至此就解决了，但是还有一个更深入的问题没有解决：为什么同时存在多个日志框架的时候就会出现冲突呢？在解决完问题之后，我深入研究了日志框架的历史和设计，发现原来这跟日志框架的实现机制有关系。</p>
+
+<h3 id="toc_5">日志框架的历史</h3>
+
+<p>首先要从日志框架的发展历史开始说起。</p>
+
+<ul>
+<li>首先登场是<code>Java Util Log</code>，简称JUL，是JDK 中自带的 log 功能。虽然是官方自带的，JUL 的使用却不广泛，主要是因为功能比较简单，不好用。</li>
+<li>然后<code>Log4j 1.x</code>就登场了：它是 Gülcü 设计实现的日志框架，设计非常优秀，是非常广泛使用的框架。</li>
+<li><code>Commons Logging</code>：简称 JCL，是 Apache 的项目。JCL 是一个 Log Facade，只提供 Log API，不提供实现，用 Adapter 来使用 Log4j 或者 JUL 作为 Log Implementation。目的是统一日志接口规范，适配多种日志实现。</li>
+<li><code>SLF4J/Logback</code>：SLF4J(The Simple Logging Facade for Java) 和 Logback 也是 Gülcü 创立的项目，其创立主要是为了提供更高性能的实现。其中，SLF4j 是类似于JCL 的Log Facade，Logback 是类似于Log4j 的 Log Implementation。这老哥觉得 JCL 的接口设计不好，所以重新设计了一套。</li>
+<li><code>Log4j2</code>：维护 Log4j 的人为了不让 Log4j 的用户被 SLF4J/Logback 抢走，所以搞出了新的日志框架。Log4j2 和 Log4j1.x 并不兼容，设计上很大程度上模仿了 SLF4J/Logback，性能上也获得了很大的提升。Log4j2 也做了 Facade/Implementation 分离的设计，分成了 log4j-api 和 log4j-core。</li>
+</ul>
+
+<p>至此我们已经有了三个的 Log 接口和四个 Log 实现，果然程序员真的是爱造轮子。出现这么多框架之后，有人开始搞各个框架之间的桥接，你兼容我，我兼容你，如下图所示。</p>
+
+<p><img src="media/15748550557497/15750975835057.jpg" alt=""/></p>
+
+<p>因为很多 jar 使用的日志框架不同，所以经常会出现引入 jar 包之后导致日志类冲突，前面我们排查的那个问题就是因为引入了 jcl-over-slf4j 的桥接包。</p>
+
+<h3 id="toc_6">动态加载日志实现</h3>
+
+<p>前面我们提到日志框架分为日志接口和日志实现，只要我们代码中使用的是日志接口（JCL、SLF4J），我们可以随时替换日志的实现。</p>
+
+<h4 id="toc_7">SLF4J 加载日志实现的方式</h4>
+
+<p>SLF4J 加载日志实现分为两个步骤：</p>
+
+<ol>
+<li>获取 ILoggerFactory 日志工厂</li>
+<li>根据 ILoggerFactory 获取 Logger</li>
+</ol>
+
+<p>SLF4J 要求日志实现 jar 包都要实现 StaticLoggerBinder 这个类，而且要放在指定目录：<code>org/slf4j/impl/StaticLoggerBinder.class</code>，SLF4J 的<code>LoggerFactory</code>会去扫描所有 jar 包中的这个地址，参考下面的代码。</p>
+
+<pre><code class="language-text">private static String STATIC_LOGGER_BINDER_PATH = &quot;org/slf4j/impl/StaticLoggerBinder.class&quot;;
+
+static Set&lt;URL&gt; findPossibleStaticLoggerBinderPathSet() {
+        LinkedHashSet staticLoggerBinderPathSet = new LinkedHashSet();
+        //加载所有可能日志工厂类
+        try {
+            ClassLoader ioe = LoggerFactory.class.getClassLoader();
+            Enumeration paths;
+            if(ioe == null) {
+                paths = ClassLoader.getSystemResources(STATIC_LOGGER_BINDER_PATH);
+            } else {
+                paths = ioe.getResources(STATIC_LOGGER_BINDER_PATH);
+            }
+
+            while(paths.hasMoreElements()) {
+                URL path = (URL)paths.nextElement();
+                staticLoggerBinderPathSet.add(path);
+            }
+        } catch (IOException var4) {
+            Util.report(&quot;Error getting resources from path&quot;, var4);
+        }
+
+        return staticLoggerBinderPathSet;
+    }
+</code></pre>
+
+<p>虽然它扫描了多个日志实现，但实际上同名类 JVM 只能存在一个，它这里扫描的目的是为了打印日志告诉用户有多少个日志实现在依赖包中。下面的代码返回的是最终使用的日志实现。</p>
+
+<pre><code class="language-text">public static ILoggerFactory getILoggerFactory() {
+        if (INITIALIZATION_STATE == UNINITIALIZED) {
+            synchronized (LoggerFactory.class) {
+                if (INITIALIZATION_STATE == UNINITIALIZED) {
+                    INITIALIZATION_STATE = ONGOING_INITIALIZATION;
+                    performInitialization();
+                }
+            }
+        }
+        switch (INITIALIZATION_STATE) {
+        case SUCCESSFUL_INITIALIZATION:
+        //这里通过静态方法返回真正使用的日志工程类
+            return StaticLoggerBinder.getSingleton().getLoggerFactory();
+        case NOP_FALLBACK_INITIALIZATION:
+            return NOP_FALLBACK_FACTORY;
+        case FAILED_INITIALIZATION:
+            throw new IllegalStateException(UNSUCCESSFUL_INIT_MSG);
+        case ONGOING_INITIALIZATION:
+            // support re-entrant behavior.
+            // See also http://jira.qos.ch/browse/SLF4J-97
+            return SUBST_FACTORY;
+        }
+        throw new IllegalStateException(&quot;Unreachable code&quot;);
+    }
+</code></pre>
+
+<p>你可能要问了，同时存在多个日志实现类的时候，到底是用的是哪个？答案很简单，因为 SLF4J 利用了静态类来加载日志工程，实际上就是让 JVM 决定使用哪个类：哪个被先加载到 JVM 中就用哪个。为了搞清楚这个问题的答案，我特地去看了<code>URLClassPath</code>加载类的实现，它就是按照 jar 加入到 <code>URLClassPath</code>的顺序遍历扫描，找到第一个符合条件的就返回。</p>
+
+<h4 id="toc_8">JCL 加载日志实现的方式</h4>
+
+<p>相比 SLF4J 比较任性的加载方式（依赖 JVM 加载类的顺序），JCL 提供了更多的配置能力，可以指定使用哪一个日志工程类。</p>
+
+<p>类似的，JCL 也分为两个步骤加载日志实现：</p>
+
+<ol>
+<li>获取 LogFactory 日志工厂类</li>
+<li>根据 LogFactory 获取 Logger</li>
+</ol>
+
+<p>首先是获取 LogFactory：</p>
+
+<ol>
+<li>先从系统属性中读取系统属性<code>System.getProperty(&quot;org.apache.commons.logging.LogFactory&quot;)</code></li>
+<li>使用 Java 的 SPI 机制，来搜寻对应的实现：<code>META-INF/services/org.apache.commons.logging.LogFactory</code>，这里就不对 SPI 进行过多介绍了，简单来说就是搜寻哪些 jar 包中含有搜寻含有上述文件，该文件中指明了对应的 LogFactory 实现</li>
+<li>从 commons-logging 的配置文件中 commons-logging.properties 寻找<code>org.apache.commons.logging.LogFactory</code>的值</li>
+<li>最后还没找到的话，使用默认的<code>org.apache.commons.logging.impl.LogFactoryImpl</code></li>
+</ol>
+
+<p>找到 LogFactory 之后就根据 LogFactory 获取 Logger，这个根据不同的 LogFactory 实现有不同的方式。前面我遇到那个问题就是因为类冲突导致使用了 SLJ4J 的 LogFactory ，加载了错误的 Logger。</p>
+
+<h2 id="toc_9">总结</h2>
+
+<p>开发过程中总会遇到奇奇怪怪的问题，有无处下手的感觉时先稳住心态，按照大胆假设，小心求证的方式进行排查，实在没有思路往往是因为基础还不扎实。像这次日志打印不出来的问题，如果了解日志框架的加载实现，很容易就能定位到问题；差一点的像我不了解日志框架的实现，但是我可以根据之前对类加载机制的了解也能解决问题；如果对类加载机制不了解，那基本上是无解了。因此，要把问题当做学习机会，不光要解决问题，还要深挖背后的原理，做好总结，这样才能为解决更多的问题打下扎实基础。</p>
+
+<!--附一下我以前查问题做的总结
+- [环境问题的排查经验及总结](https://www.atatech.org/articles/102346)
+- [解决技术问题的思考：以解析PDF遇到的问题为例](https://www.atatech.org/articles/86637)-->
+
+<h2 id="toc_10">参考资料</h2>
+
+<ul>
+<li><a href="https://zhuanlan.zhihu.com/p/24272450">Java 日志框架解析(上) - 历史演进</a></li>
+<li><a href="https://my.oschina.net/pingpangkuangmo/blog/407895">jcl与jul、log4j1、log4j2、logback的集成原理</a></li>
+<li><a href="https://my.oschina.net/pingpangkuangmo/blog/408382">slf4j与jul、log4j1、log4j2、logback的集成原理</a></li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%85%B6%E4%BB%96.html'>其他</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="classloader-isolation.html" 
+	        title="Previous Post: Java 类隔离加载的正确姿势">&laquo; Java 类隔离加载的正确姿势</a>
+	    
+	    
+	        <a class="basic-alignment right" href="blockchain.html" 
+	        title="Next Post: 多视角看区块链">多视角看区块链 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

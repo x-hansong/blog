@@ -1,0 +1,588 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  分布式系统：一致性协议 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">分布式系统：一致性协议</h1>
+				<p class="meta"><time datetime="2019-03-14T10:32:06+08:00" pubdate data-updated="true">2019/3/14</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<p>一致性模型本质上是进程与数据存储的约定，通过一致性模型我们可以理解和推理在分布式系统中数据复制需要考虑的问题和基本假设。那么，一致性模型的具体实现有一些呢？本文会介绍一致性协议实现的主要思想和方法。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">什么是一致性协议</h2>
+
+<p><strong>一致性协议描述了特定一致性模型的实际实现。</strong>一致性模型就像是接口，而一致性协议就像是接口的具体实现。一致性模型提供了分布式系统中数据复制时保持一致性的约束，为了实现一致性模型的约束，需要通过一致性协议来保证。</p>
+
+<p>一致性协议根据是否允许数据分歧可以分为两种：</p>
+
+<ul>
+<li><strong>单主协议（不允许数据分歧）</strong>：整个分布式系统就像一个单体系统，所有写操作都由主节点处理并且同步给其他副本。例如主备同步、2PC、Paxos 都属于这类协议。</li>
+<li><strong>多主协议（允许数据分歧）</strong>：所有写操作可以由不同节点发起，并且同步给其他副本。例如 Gossip、POW。</li>
+</ul>
+
+<p>可以发现，<strong>它们的核心区别在于是否允许多个节点发起写操作，单主协议只允许由主节点发起写操作，因此它可以保证操作有序性，一致性更强。而多主协议允许多个节点发起写操作，因此它不能保证操作的有序性，只能做到弱一致性。</strong></p>
+
+<p>值得注意的是，一致性协议的分类方式有很多种，主要是看从哪个角度出发进行归类，常用的另一个归类方式是根据同步/异步复制来划分，这里就不多做讨论了。下面对单主协议和多主协议分别做一些共性的分析，篇幅所限，不会深入到协议细节。</p>
+
+<h2 id="toc_1">单主协议</h2>
+
+<p>单主协议的共同点在于都会用一个主节点来负责写操作，这样能够保证全局写的顺序一致性，它有另一个名字叫定序器，非常的形象。</p>
+
+<h3 id="toc_2">主备复制</h3>
+
+<p>主备复制可以说是最常用的数据复制方法，也是最基础的方法，很多其他协议都是基于它的变种。 <strong>主备复制要求所有的写操作都在主节点上进行，然后将操作的日志发送给其他副本。</strong>可以发现由于主备复制是有延迟的，所以它实现的是最终一致性。</p>
+
+<p>主备复制的实现方式：主节点处理完写操作之后立即返回结果给客户端，写操作的日志异步同步给其他副本。这样的好处是性能高，客户端不需要等待数据同步，缺点是如果主节点同步数据给副本之前数据缺失了，那么这些数据就永久丢失了。MySQL 的主备同步就是典型的异步复制。</p>
+
+<h3 id="toc_3">两阶段提交</h3>
+
+<p>两阶段提交（2PC）是关系型数据库常用的保持分布式事务一致性的协议，它也属于同步复制协议，即数据都同步完成之后才返回客户端结果。可以发现 2PC 保证所有节点数据一致之后才返回给客户端，实现了顺序一致性。</p>
+
+<p>2PC 把数据复制分为两步：</p>
+
+<ol>
+<li><strong>表决阶段</strong>：主节点将数据发送给所有副本，每个副本都要响应提交或者回滚，如果副本投票提交，那么它会将数据放到暂存区域，等待最终提交。</li>
+<li><strong>提交阶段</strong>：主节点收到其他副本的响应，如果副本都认为可以提交，那么就发送确认提交给所有副本让它们提交更新，数据就会从暂存区域移到永久区域。只要有一个副本返回回滚就整体回滚。</li>
+</ol>
+
+<p>可以发现 2PC 是典型的 CA 系统，为了保证一致性和可用性，2PC 一旦出现网络分区或者节点不可用就会被拒绝写操作，把系统变成只读的。由于 2PC 容易出现节点宕机导致一直阻塞的情况，所以在数据复制的场景中不常用，一般多用于分布式事务中（注：实际应用过程中会有很多优化）。</p>
+
+<h3 id="toc_4">分区容忍的一致性协议</h3>
+
+<p>分区容忍的一致性协议跟所有的单主协议一样，它也是只有一个主节点负责写入（提供顺序一致性），但它跟 2PC 的区别在于它只需要保证大多数节点（一般是超过半数）达成一致就可以返回客户端结果，这样可以提高了性能，同时也能容忍网络分区（少数节点分区不会导致整个系统无法运行）。分区容忍的一致性算法保证大多数节点数据一致后才返回客户端，同样实现了顺序一致性。</p>
+
+<p>下面用一个简单的示例来说明这类算法的核心思想。假设现在有一个分布式文件系统，它的文件都被复制到 3 个服务器上，我们规定：要更新一个文件，客户端必须先访问至少 2 个服务器（大多数），得到它们同意之后才能执行更新，同时每个文件都会有版本号标识；要读取文件的时候，客户端也必须要访问至少 2 个服务器获取该文件的版本号，如果所有的版本号一致，那么该版本必定是最新的版本，因为如果前面的更新操作要求必须要有大多数服务器的同意才能更新文件。</p>
+
+<p>以上就是我们熟知的 Paxos、ZAB、Raft 等分区容忍的一致性协议的核心思想：<strong>一致性的保证不一定非要所有节点都保持一致，只要大多数节点更新了，对于整个分布式系统来说数据也是一致性的。</strong>上面只是一个简单的阐述，真正的算法实现是比较复杂的，这里就不展开了。</p>
+
+<p>分区容忍的一致性协议如 Paxos 是典型的 CP 系统，为了保证一致性和分区容忍，在网络分区的情况下，允许大多数节点的写入，通过大多数节点的一致性实现整个系统的一致性，同时让少数节点停止服务（不能读写），放弃整体系统的可用性，也就是说客户端访问到少数节点时会失败。</p>
+
+<p>值得注意的是，根据 CAP 理论，假设现在有三个节点 A、B、C，当 C 被网络分区时，有查询请求过来，此时 C 因为不能和其他节点通信，所以 C 无法对查询做出响应，也就不具备可用性。但在工程实现上，这个问题是可以被绕过的，当客户端访问 C 无法得到响应时，它可以去访问 A、B，实际上对于整个系统来说还是部分可用性的，并不是说 CP 的系统一定就失去可用性。详细的分析参考<a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a></p>
+
+<h2 id="toc_5">多主协议</h2>
+
+<p>相比单主协议为了实现顺序一致性，不允许多个节点并发写，多主协议恰恰相反，只保证最终一致性，允许多个节点并发写，能够显著提升系统性能。由于多主协议一般提供的都是最终一致性，所以常用在对数据一致性要求不高的场景中。</p>
+
+<p>Gossip 协议就是一种典型的多主协议，很多分布式系统都使用它来做数据复制，例如比特币，作为一条去中心化的公链，所有节点的数据同步都用的是 Gossip 协议。此外，Gossip 协议也在一些分布式数据库中如 Dynamo 中被用来做分布式故障检测的状态同步，当有节点故障离开集群时，其他节点可以快速检测到。</p>
+
+<p>从名称上就可以看出 Gossip 协议的核心思想，Gossip 是流言八卦的意思，想想我们日常生活人与人之间传八卦的场景，在学校里面一个八卦一旦有一个人知道了，通过人传人，基本上整个学校的人最终都会知道了。因此 Gossip 协议的核心思想就是：<strong>每个节点都可以对其他节点发送消息，接收到消息的节点随机选择其他节点发送消息，接收到消息的节点也做同样的事情。</strong></p>
+
+<p><strong>多主协议允许运行多个节点并发写，就一定会出现对一个数据并发写导致数据冲突的情况，因此这类协议都需要解决并发写的问题。</strong>单主协议通过主节点控制写入，保证不会出现并发写的情况，因为所有写操作最终都会通过主节点排序，从某种意义上讲，使用单主协议的系统对于写入实际上是串行的，因此其性能是有瓶颈的。而多主协议允许多节点并发写，提搞了写入的性能，但是实际上它是把数据合并的操作延迟了，单主协议在写入的时候就进行了数据合并，因此读取数据的时候如果出现数据冲突的时候，就需要对数据进行合并，保证全局一致性。</p>
+
+<p>前面我们提到比特币使用的是 Gossip 协议做数据复制，那么问题来了，不是说多主协议性能会比较高吗，为什么比特币的性能那么差？这里实际上要分开来看，由于比特币是去中心化的，但是它的支付功能需要保证全局数据一致性，因此它用了一种很巧妙的一致性算法 POW：所有节点都做一道数学题，谁先算出答案谁有权利将交易写到链上，然后利用 Gossip 协议传播它的答案和交易，其他节点验证它的答案正确就将数据保存起来。</p>
+
+<p>到这里你可能会有一个疑问：POW 作为多主协议为什么性能这么低？任何协议都有它适用的场景。在比特币这个场景中，它对于数据一致性是有强需求的，理论上用单主协议是最优的选择。但是比特币作为去中心化的数字货币是不会使用单主协议的，否则又变成中心化的系统了。因此比特币只能选择多主协议，通过 POW 协议将比特币整条链操作进行了<strong>近似串行化</strong>，这样才能降低出现双花的概率（并发写的时候一个比特币被消费多次），鱼与熊掌不可兼得，既然要强一致性，那么只能牺牲性能来换取。</p>
+
+<p>由于多主协议允许了数据分歧，那么就需要有解决数据冲突的策略来保证最终一致性。如果要严格区分的话，比特币实际上应用了两个一致性协议：</p>
+
+<ul>
+<li><strong>POW</strong>：决定节点的记账权，起到类似单主协议中定序器的作用。注意 POW 也是多主协议，尽管概率很低，但是它有可能出现多个节点同时算出答案，一起出块（并发写）的情况，此时我们称比特币出现了分叉，即出现了数据冲突。</li>
+<li><strong>Gossip</strong>：用于将出块的交易同步到全球所有节点。由于 POW 会出现并发写的情况，当一个节点同时接受到多个节点写入请求时，就需要解决数据冲突的问题。<strong>比特币解决数据冲突的方式就是当出现分叉时，选取最长的那条链作为主链，其他分叉的链上的交易会被回滚，等待重新打包出块。</strong></li>
+</ul>
+
+<h2 id="toc_6">总结</h2>
+
+<p>本文主要<strong>从是否允许数据分歧的角度将分布式一致性协议分为两种：单主协议和多主协议。</strong>其中单主协议会用一个主节点来负责写操作，这样能够保证全局写的顺序一致性，但因此也牺牲了一部分性能。而多主协议则允许写操作可以由不同节点发起，并且同步给其他副本，只能保证最终一致性，但因此也提升了系统并发写入的性能。对数据一致性要求高的场景例如分布式数据库，主要会使用单主协议，对数据一致性要求不高例如故障检测，主要会使用多主协议来提高性能，当然也有特例，像比特币为了去中心化使用 POW 和 Gossip 结合进行数据复制。</p>
+
+<p>值得注意的是，文中提到的单主、多主协议只是我个人对分布式一致性协议的一种分类方式，帮助我们更好的理解。读者可以看一下参考资料，看一下不同作者对分布式协议是如何分类的，这样对分布式一致性协议会有更深入的理解。</p>
+
+<h2 id="toc_7">参考资料</h2>
+
+<ul>
+<li>《分布式系统原理与范型》</li>
+<li><a href="http://book.mixu.net/distsys/">Distributed systems for fun and profit</a></li>
+</ul>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html'>分布式系统</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="Continuous-Consistency.html" 
+	        title="Previous Post: 分布式系统：持续一致性">&laquo; 分布式系统：持续一致性</a>
+	    
+	    
+	        <a class="basic-alignment right" href="consistency-model.html" 
+	        title="Next Post: 分布式系统：一致性模型">分布式系统：一致性模型 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

@@ -1,0 +1,655 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  对抽象类与接口的一点思考 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">对抽象类与接口的一点思考</h1>
+				<p class="meta"><time datetime="2015-12-02T16:14:23+08:00" pubdate data-updated="true">2015/12/2</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">前言</h2>
+
+<p>之前写了一篇文章 <a href="clean-code-polymorphism.html">简洁代码之道（1）：用多态替代条件语句</a>，有人问实现多态的时候为什么用抽象类而不是接口。当时写文章的时候并没有想到这个问题。后来仔细想想，这的确是个值得探讨的问题。多态可以用抽象类或者接口实现，重点是应该用哪个？更大问题是，接口和抽象类有什么本质的区别？下面我们将讨论以下的问题：</p>
+
+<ul>
+<li>抽象类和接口的对比</li>
+<li>从 java 容器类的设计讨论抽象类和接口的应用</li>
+<li>抽象类和接口的使用时机</li>
+</ul>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">抽象类与接口的对比</h2>
+
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>抽象类</th>
+<th>接口</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>默认的方法实现</td>
+<td>它可以有默认的方法实现</td>
+<td>接口完全是抽象的。它根本不存在方法的实现</td>
+</tr>
+<tr>
+<td>实现</td>
+<td>子类使用extends关键字来继承抽象类。如果子类不是抽象类的话，它需要提供抽象类中所有声明的方法的实现。</td>
+<td>子类使用关键字implements来实现接口。它需要提供接口中所有声明的方法的实现</td>
+</tr>
+<tr>
+<td>构造器</td>
+<td>抽象类可以有构造器</td>
+<td>接口不能有构造器</td>
+</tr>
+<tr>
+<td>与正常Java类的区别</td>
+<td>除了你不能实例化抽象类之外，它和普通Java类没有任何区别</td>
+<td>接口是完全不同的类型</td>
+</tr>
+<tr>
+<td>访问修饰符</td>
+<td>抽象方法可以有public、protected和default这些修饰符</td>
+<td>接口方法默认修饰符是public。你不可以使用其它修饰符。</td>
+</tr>
+<tr>
+<td>main方法</td>
+<td>抽象方法可以有main方法并且我们可以运行它</td>
+<td>接口没有main方法，因此我们不能运行它。</td>
+</tr>
+<tr>
+<td>多继承</td>
+<td>抽象方法可以继承一个类和实现多个接口</td>
+<td>接口只可以继承一个或多个其它接口</td>
+</tr>
+<tr>
+<td>速度</td>
+<td>它比接口速度要快</td>
+<td>接口是稍微有点慢的，因为它需要时间去寻找在类中实现的方法。</td>
+</tr>
+<tr>
+<td>添加新方法</td>
+<td>如果你往抽象类中添加新的方法，你可以给它提供默认的实现。因此你不需要改变你现在的代码。</td>
+<td>如果你往接口中添加方法，那么你必须改变实现该接口的类。</td>
+</tr>
+</tbody>
+</table>
+
+<p>抽象类和接口有不同，也有相似的地方。有些书把接口称作特殊的类，虽然不准确，但也有一定道理，接口能做的事情，抽象类也能做到，除了多重继承。正是因为这些相似的特性，让我们在使用它们的时候有了困惑：这里到底该用抽象类还是接口？</p>
+
+<h2 id="toc_2">从 java 容器类的设计讨论抽象类和接口的应用</h2>
+
+<p>除了前面提到的一个问题：多态到底是用抽象类还是接口实现？我还看到有人评论说：现在都是提倡面向接口编程，使用抽象类的都被称为上世纪的老码农了。哈哈。看到这个说法我也是苦笑不得。不过，面向接口编程的确是一个趋势，java 8 已经支持接口实现默认方法和静态方法了，抽象类和接口之间的差异越来越小。闲话少说，我们开始讨论抽象类和接口的应用。</p>
+
+<p><img src="media/15473672636943/15473725919217.png" alt=""/></p>
+
+<p>上图是 java 容器类的类继承关系。我们以容器类中 <code>ArrayList</code> 为例子来讨论抽象类和接口的应用。</p>
+
+<h3 id="toc_3">ArrayList 类继承关系</h3>
+
+<p><img src="media/15473672636943/15473726246345.png" alt=""/></p>
+
+<p>上图是 <code>ArrayList</code> 的类继承关系。可以看到，<code>ArrayList</code> 的继承关系中既使用了抽象类，也使用了接口。</p>
+
+<ul>
+<li>最顶层的接口是 <code>Iterable</code>，表示这是可迭代的类型。所有容器类都是可迭代的，这是一个极高的抽象。</li>
+<li>第二层的接口是 <code>Collection</code>，这是单一元素容器的接口。集合，列表都属于此类。</li>
+<li>第三层的接口是 <code>List</code>，这是所有列表的接口。</li>
+</ul>
+
+<p>通过三个接口，我们可以找到容器类的三个抽象特性，实现这些接口就意味着拥有这些接口的特性。</p>
+
+<ul>
+<li><code>AbstractCollection</code> 实现了 <code>Collection</code> 中的部分方法。</li>
+<li><code>AbstractList</code> 实现了 <code>AbstractCollection</code> 和 <code>List</code> 中的部分方法。</li>
+</ul>
+
+<p>上面的抽象类提供了一些方法的默认实现，给具体类提供了复用代码。</p>
+
+<h3 id="toc_4">纯抽象类实现</h3>
+
+<p>如果我们像一个老码农一样，用抽象类来实现上面的接口会有怎样的效果？那么，类图可能变成这样。</p>
+
+<p><img src="media/15473672636943/15473726416215.png" alt=""/></p>
+
+<p>抽象类在这里存在着一个很大的问题，它不能多继承，在抽象的层次上没有接口高，也没有接口灵活。例如说：</p>
+
+<pre><code class="language-text">List + AbstractCollection -&gt; AbstractList
+Set  + AbstractCollection -&gt; AbstractSet
+</code></pre>
+
+<p>单纯用抽象类无法实现像接口一样灵活的扩展。</p>
+
+<h3 id="toc_5">纯接口实现</h3>
+
+<p>如果我们像一个新码农一样，用纯接口来实现呢？</p>
+
+<p><img src="media/15473672636943/15473726763400.png" alt=""/></p>
+
+<p>这样写理论上没有问题，实际写代码的时候问题就来了。所有的接口都要提供实现，于是你不得不在各个实现类中重复代码。</p>
+
+<h3 id="toc_6">总结</h3>
+
+<p>经过上面的讨论，我们得出两个结论：</p>
+
+<ul>
+<li>抽象类和接口并不能互相替代。</li>
+<li>抽象类和接口各有不可替代的作用。</li>
+</ul>
+
+<p>从容器类的类关系图中可以看到，接口主要是用来抽象类型的共性，例如说，容器的可迭代特性。抽象类主要是给具体实现类提供重用的代码，例如说，<code>List</code> 的一些默认方法。</p>
+
+<h2 id="toc_7">抽象类和接口的使用时机</h2>
+
+<p>那么，什么时候该用抽象类，什么时候该用接口呢？</p>
+
+<p>要解决上面的问题，我们先从弄清楚抽象类和接口之间的关系。首先，我们都知道类对事物的抽象，定义了事物的属性和行为。而抽象类是不完全的类，具有抽象方法。接口则比类的抽象层次更高。所以，我们可以这样理解它们之间的关系：<strong>类是对事物的抽象，抽象类是对类的抽象，接口是对抽象类的抽象。</strong></p>
+
+<p>从这个角度来看 java 容器类，你会发现，它的设计正体现了这种关系。不是吗？从 <code>Iterable</code> 接口，到 <code>AbstractList</code> 抽象类，再到 <code>ArrayList</code> 类。</p>
+
+<p>现在回答前面的问题：在设计类的时候，首先考虑用接口抽象出类的特性，当你发现某些方法可以复用的时候，可以使用抽象类来复用代码。简单说，<strong>接口用于抽象事物的特性，抽象类用于代码复用</strong>。</p>
+
+<p>当然，不是所有类的设计都要从接口到抽象类，再到类。程序设计本就没有绝对的范式可以遵循。上面的说法只是提供一个角度来理解抽象类和接口的关系，每个人都会有自己的理解，有人认为两者一点关系都没有，这也有道理。总之，模式和语法是死的，人是活的。</p>
+
+<p><em>参考资料</em><br/>
+<a href="http://www.importnew.com/12399.html">Java抽象类与接口的区别</a><br/>
+<a href="https://bxbxbai.github.io/2014/07/20/understood_abstract_class_and_interface/.glb.clouddn.com/InterfaceList.png">我如何理解Java中抽象类和接口</a><br/>
+<a href="http://www.uml.org.cn/mxdx/200904232.asp">面向接口编程详解</a></p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E7%BC%96%E7%A8%8B.html'>编程</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="kownledge-Management.html" 
+	        title="Previous Post: 程序员的知识管理">&laquo; 程序员的知识管理</a>
+	    
+	    
+	        <a class="basic-alignment right" href="avoid-global-state.html" 
+	        title="Next Post: 简洁代码之道（2）：避免全局可变状态">简洁代码之道（2）：避免全局可变状态 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

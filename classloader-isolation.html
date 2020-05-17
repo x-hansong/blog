@@ -1,0 +1,714 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  Java 类隔离加载的正确姿势 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">Java 类隔离加载的正确姿势</h1>
+				<p class="meta"><time datetime="2020-03-29T15:21:44+08:00" pubdate data-updated="true">2020/3/29</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">什么是类隔离技术</h2>
+
+<p>只要你 Java 代码写的足够多，就一定出现这种情况：系统新引入了一个中间件的 jar 包，编译的时候一切正常，一运行就报错：<code>java.lang.NoSuchMethodError</code>，然后就哼哧哼哧的开始谷歌找解决方法，最后在几百个依赖包里面找的眼睛都快瞎了才找到冲突的 jar，把问题解决之后就开始吐槽中间件为啥搞那么多不同版本的 jar，写代码五分钟，排包排了一整天。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>上面这种情况就是 Java 开发过程中常见的情况，原因也很简单，不同 jar 包依赖了某些通用 jar 包（如日志组件）的版本不一样，编译的时候没问题，到了运行时就会因为加载的类跟预期不符合导致报错。举个例子：A 和 B 分别依赖了 C 的 v1 和 v2 版本，v2 版本的 Log 类比 v1 版本新增了 error 方法，现在工程里面同时引入了 A、B 两个 jar 包，以及 C 的 v0.1、v0.2 版本，打包的时候 maven 只能选择一个 C 的版本，假设选择了 v1 版本。到了运行的时候，默认情况下一个项目的所有类都是用同一个类加载器加载的，所以不管你依赖了多少个版本的 C，最终只会有一个版本的 C 被加载到 JVM 中。当 B 要去访问 Log.error，就会发现 Log 压根就没有 error 方法，然后就抛异常<code>java.lang.NoSuchMethodError</code>。这就是类冲突的一个典型案例。</p>
+
+<p><img src="media/15854665041217/15854713340297.jpg" alt=""/></p>
+
+<p>类冲突的问题如果版本是向下兼容的其实很好解决，把低版本的排除掉就完事了。但要是遇到版本不向下兼容的那就陷入了“救妈妈还是救女朋友”的两难处境了。</p>
+
+<p>为了避免两难选择，有人就提出了类隔离技术来解决类冲突的问题。类隔离的原理也很简单，就是让<strong>每个模块使用独立的类加载器来加载</strong>，这样不同模块之间的依赖就不会互相影响。如下图所示，不同的模块用不同的类加载器加载。为什么这样做就能解决类冲突呢？这里用到了 Java 的一个机制：不同类加载器加载的类在 JVM 看来是两个不同的类，因为在 JVM 中一个类的唯一标识是<code>类加载器+类名</code>。通过这种方式我们就能够同时加载 C 的两个不同版本的类，即使它类名是一样的。注意，这里类加载器指的是类加载器的实例，并不是一定要定义两个不同类加载器，例如图中的 PluginClassLoaderA 和 PluginClassLoaderB 可以是同一个类加载器的不同实例。<br/>
+<img src="media/15854665041217/15854719663984.jpg" alt=""/></p>
+
+<h2 id="toc_1">如何实现类隔离</h2>
+
+<p>前面我们提到类隔离就是让不同模块的 jar 包用不同的类加载器加载，要做到这一点，就需要<strong>让 JVM 能够使用自定义的类加载器加载我们写的类以及其关联的类</strong>。</p>
+
+<p>那么如何实现呢？一个很简单的做法就是 JVM 提供一个全局类加载器的设置接口，这样我们直接替换全局类加载器就行了，但是这样无法解决多个自定义类加载器同时存在的问题。</p>
+
+<p>实际上 JVM 提供了一种非常简单有效的方式，我把它称为<strong>类加载传导规则：JVM 会选择当前类的类加载器来加载所有该类的引用的类</strong>。例如我们定义了 TestA 和 TestB 两个类，TestA 会引用 TestB，只要我们使用自定义的类加载器加载 TestA，那么在运行时，当 TestA 调用到 TestB 的时候，TestB 也会被 JVM 使用 TestA 的类加载器加载。依次类推，只要是 TestA 及其引用类关联的所有 jar 包的类都会被自定义类加载器加载。通过这种方式，我们只要让模块的 main 方法类使用不同的类加载器加载，那么每个模块的都会是用 main 方法类的类加载器加载的，这样就能让多个模块分别使用不同类加载器。这也是 OSGi 和 SofaArk 能够实现类隔离的核心原理。</p>
+
+<p>了解了类隔离的实现原理之后，我们从重写类加载器开始进行实操。要实现自己的类加载器，首先让自定义的类加载器继承<code>java.lang.ClassLoader</code>，然后重写类加载的方法，这里我们有两个选择，一个是重写<code>findClass(String name)</code>，一个是重写<code>loadClass(String name)</code>。那么到底应该选择哪个？这两者有什么区别？</p>
+
+<p>下面我们分别尝试重写这两个方法来实现自定义类加载器。</p>
+
+<h3 id="toc_2">重写 findClass</h3>
+
+<p>首先我们定义两个类，TestA 会打印自己的类加载器，然后调用 TestB 打印它的类加载器，我们预期是实现重写了 findClass 方法的类加载器 MyClassLoaderParentFirst 能够在加载了 TestA 之后，让 TestB 也自动由 MyClassLoaderParentFirst 来进行加载。</p>
+
+<pre><code class="language-text">public class TestA {
+
+    public static void main(String[] args) {
+        TestA testA = new TestA();
+        testA.hello();
+    }
+
+    public void hello() {
+        System.out.println(&quot;TestA: &quot; + this.getClass().getClassLoader());
+        TestB testB = new TestB();
+        testB.hello();
+    }
+}
+
+public class TestB {
+
+    public void hello() {
+        System.out.println(&quot;TestB: &quot; + this.getClass().getClassLoader());
+    }
+}
+
+</code></pre>
+
+<p>然后重写一下 findClass 方法，这个方法先根据文件路径加载 class 文件，然后调用 defineClass 获取 Class 对象。</p>
+
+<pre><code class="language-text">public class MyClassLoaderParentFirst extends ClassLoader{
+
+    private Map&lt;String, String&gt; classPathMap = new HashMap&lt;&gt;();
+
+    public MyClassLoaderParentFirst() {
+        classPathMap.put(&quot;com.java.loader.TestA&quot;, &quot;/Users/hansong/IdeaProjects/OhMyJava/CodeRepository/target/classes/com/java/loader/TestA.class&quot;);
+        classPathMap.put(&quot;com.java.loader.TestB&quot;, &quot;/Users/hansong/IdeaProjects/OhMyJava/CodeRepository/target/classes/com/java/loader/TestB.class&quot;);
+    }
+
+    // 重写了 findClass 方法
+    @Override
+    public Class&lt;?&gt; findClass(String name) throws ClassNotFoundException {
+        String classPath = classPathMap.get(name);
+        File file = new File(classPath);
+        if (!file.exists()) {
+            throw new ClassNotFoundException();
+        }
+        byte[] classBytes = getClassData(file);
+        if (classBytes == null || classBytes.length == 0) {
+            throw new ClassNotFoundException();
+        }
+        return defineClass(classBytes, 0, classBytes.length);
+    }
+
+    private byte[] getClassData(File file) {
+        try (InputStream ins = new FileInputStream(file); ByteArrayOutputStream baos = new
+                ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int bytesNumRead = 0;
+            while ((bytesNumRead = ins.read(buffer)) != -1) {
+                baos.write(buffer, 0, bytesNumRead);
+            }
+            return baos.toByteArray();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return new byte[] {};
+    }
+}
+</code></pre>
+
+<p>最后写一个 main 方法调用自定义的类加载器加载 TestA，然后通过反射调用 TestA 的 main 方法打印类加载器的信息。</p>
+
+<pre><code class="language-text">public class MyTest {
+
+    public static void main(String[] args) throws Exception {
+        MyClassLoaderParentFirst myClassLoaderParentFirst = new MyClassLoaderParentFirst();
+        Class testAClass = myClassLoaderParentFirst.findClass(&quot;com.java.loader.TestA&quot;);
+        Method mainMethod = testAClass.getDeclaredMethod(&quot;main&quot;, String[].class);
+        mainMethod.invoke(null, new Object[]{args});
+    }
+</code></pre>
+
+<p>执行的结果如下：</p>
+
+<pre><code class="language-text">TestA: com.java.loader.MyClassLoaderParentFirst@1d44bcfa
+TestB: sun.misc.Launcher$AppClassLoader@18b4aac2
+</code></pre>
+
+<p>执行的结果并没有如我们期待，TestA 确实是 MyClassLoaderParentFirst 加载的，但是 TestB 还是 AppClassLoader 加载的。这是为什么呢？</p>
+
+<p>要回答这个问题，首先是要了解一个类加载的规则：<strong>JVM 在触发类加载时调用的是 ClassLoader.loadClass 方法</strong>。这个方法的实现了双亲委派：</p>
+
+<ol>
+<li>委托给父加载器查询</li>
+<li>如果父加载器查询不到，就调用 findClass 方法进行加载</li>
+</ol>
+
+<p>明白了这个规则之后，执行的结果的原因就找到了：JVM 确实使用了MyClassLoaderParentFirst 来加载 TestB，但是因为双亲委派的机制，TestB 被委托给了 MyClassLoaderParentFirst 的父加载器 AppClassLoader 进行加载。</p>
+
+<p>你可能还好奇，为什么 MyClassLoaderParentFirst 的父加载器是 AppClassLoader？因为我们定义的 main 方法类默认情况下都是由 JDK 自带的 AppClassLoader 加载的，根据类加载传导规则，main 类引用的 MyClassLoaderParentFirst 也是由加载了 main 类的AppClassLoader 来加载。由于 MyClassLoaderParentFirst 的父类是 ClassLoader，ClassLoader 的默认构造方法会自动设置父加载器的值为 AppClassLoader。</p>
+
+<pre><code class="language-text">    protected ClassLoader() {
+        this(checkCreateClassLoader(), getSystemClassLoader());
+    }
+</code></pre>
+
+<h3 id="toc_3">重写 loadClass</h3>
+
+<p>由于重写 findClass 方法会受到双亲委派机制的影响导致 TestB 被 AppClassLoader 加载，不符合类隔离的目标，所以我们只能重写 loadClass 方法来破坏双亲委派机制。代码如下所示：</p>
+
+<pre><code class="language-text">public class MyClassLoaderCustom extends ClassLoader {
+
+    private ClassLoader jdkClassLoader;
+
+    private Map&lt;String, String&gt; classPathMap = new HashMap&lt;&gt;();
+
+    public MyClassLoaderCustom(ClassLoader jdkClassLoader) {
+        this.jdkClassLoader = jdkClassLoader;
+        classPathMap.put(&quot;com.java.loader.TestA&quot;, &quot;/Users/hansong/IdeaProjects/OhMyJava/CodeRepository/target/classes/com/java/loader/TestA.class&quot;);
+        classPathMap.put(&quot;com.java.loader.TestB&quot;, &quot;/Users/hansong/IdeaProjects/OhMyJava/CodeRepository/target/classes/com/java/loader/TestB.class&quot;);
+    }
+
+    @Override
+    protected Class&lt;?&gt; loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        Class result = null;
+        try {
+            //这里要使用 JDK 的类加载器加载 java.lang 包里面的类
+            result = jdkClassLoader.loadClass(name);
+        } catch (Exception e) {
+            //忽略
+        }
+        if (result != null) {
+            return result;
+        }
+        String classPath = classPathMap.get(name);
+        File file = new File(classPath);
+        if (!file.exists()) {
+            throw new ClassNotFoundException();
+        }
+
+        byte[] classBytes = getClassData(file);
+        if (classBytes == null || classBytes.length == 0) {
+            throw new ClassNotFoundException();
+        }
+        return defineClass(classBytes, 0, classBytes.length);
+    }
+
+
+    private byte[] getClassData(File file) { //省略 }
+
+}
+
+</code></pre>
+
+<p>这里注意一点，我们重写了 loadClass 方法也就是意味着所有类包括 java.lang 包里面的类都会通过 MyClassLoaderCustom 进行加载，但类隔离的目标不包括这部分 JDK 自带的类，所以我们用 ExtClassLoader 来加载 JDK 的类，相关的代码就是：<code>result = jdkClassLoader.loadClass(name);</code></p>
+
+<p>测试代码如下：</p>
+
+<pre><code class="language-text">public class MyTest {
+
+    public static void main(String[] args) throws Exception {
+        //这里取AppClassLoader的父加载器也就是ExtClassLoader作为MyClassLoaderCustom的jdkClassLoader
+        MyClassLoaderCustom myClassLoaderCustom = new MyClassLoaderCustom(Thread.currentThread().getContextClassLoader().getParent());
+        Class testAClass = myClassLoaderCustom.loadClass(&quot;com.java.loader.TestA&quot;);
+        Method mainMethod = testAClass.getDeclaredMethod(&quot;main&quot;, String[].class);
+        mainMethod.invoke(null, new Object[]{args});
+    }
+}
+</code></pre>
+
+<p>执行结果如下：</p>
+
+<pre><code class="language-text">TestA: com.java.loader.MyClassLoaderCustom@1d44bcfa
+TestB: com.java.loader.MyClassLoaderCustom@1d44bcfa
+</code></pre>
+
+<p>可以看到，通过重写了 loadClass 方法，我们成功的让 TestB 也使用MyClassLoaderCustom 加载到了 JVM 中。</p>
+
+<h2 id="toc_4">总结</h2>
+
+<p>类隔离技术是为了解决依赖冲突而诞生的，它通过自定义类加载器破坏双亲委派机制，然后利用类加载传导规则实现了不同模块的类隔离。</p>
+
+<h2 id="toc_5">参考资料</h2>
+
+<p><a href="https://www.ibm.com/developerworks/cn/java/j-lo-classloader/index.html">深入探讨 Java 类加载器</a></p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Java.html'>Java</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	    
+	        <a class="basic-alignment right" href="java-log-confict-solve.html" 
+	        title="Next Post: Java 日志框架冲突问题排查与总结">Java 日志框架冲突问题排查与总结 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

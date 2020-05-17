@@ -1,0 +1,2748 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Sharehub]]></title>
+  <link href="https://blog.xiaohansong.com/atom.xml" rel="self"/>
+  <link href="https://blog.xiaohansong.com/"/>
+  <updated>2020-05-17T09:47:48+08:00</updated>
+  <id>https://blog.xiaohansong.com/</id>
+  <author>
+    <name><![CDATA[]]></name>
+    
+  </author>
+  <generator uri="http://www.coderforart.com/">CoderForArt</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Java 类隔离加载的正确姿势]]></title>
+    <link href="https://blog.xiaohansong.com/classloader-isolation.html"/>
+    <updated>2020-03-29T15:21:44+08:00</updated>
+    <id>https://blog.xiaohansong.com/classloader-isolation.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">什么是类隔离技术</h2>
+
+<p>只要你 Java 代码写的足够多，就一定出现这种情况：系统新引入了一个中间件的 jar 包，编译的时候一切正常，一运行就报错：<code>java.lang.NoSuchMethodError</code>，然后就哼哧哼哧的开始谷歌找解决方法，最后在几百个依赖包里面找的眼睛都快瞎了才找到冲突的 jar，把问题解决之后就开始吐槽中间件为啥搞那么多不同版本的 jar，写代码五分钟，排包排了一整天。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>上面这种情况就是 Java 开发过程中常见的情况，原因也很简单，不同 jar 包依赖了某些通用 jar 包（如日志组件）的版本不一样，编译的时候没问题，到了运行时就会因为加载的类跟预期不符合导致报错。举个例子：A 和 B 分别依赖了 C 的 v1 和 v2 版本，v2 版本的 Log 类比 v1 版本新增了 error 方法，现在工程里面同时引入了 A、B 两个 jar 包，以及 C 的 v0.1、v0.2 版本，打包的时候 maven 只能选择一个 C 的版本，假设选择了 v1 版本。到了运行的时候，默认情况下一个项目的所有类都是用同一个类加载器加载的，所以不管你依赖了多少个版本的 C，最终只会有一个版本的 C 被加载到 JVM 中。当 B 要去访问 Log.error，就会发现 Log 压根就没有 error 方法，然后就抛异常<code>java.lang.NoSuchMethodError</code>。这就是类冲突的一个典型案例。</p>
+
+<p><img src="media/15854665041217/15854713340297.jpg" alt=""/></p>
+
+<p>类冲突的问题如果版本是向下兼容的其实很好解决，把低版本的排除掉就完事了。但要是遇到版本不向下兼容的那就陷入了“救妈妈还是救女朋友”的两难处境了。</p>
+
+<p>为了避免两难选择，有人就提出了类隔离技术来解决类冲突的问题。类隔离的原理也很简单，就是让<strong>每个模块使用独立的类加载器来加载</strong>，这样不同模块之间的依赖就不会互相影响。如下图所示，不同的模块用不同的类加载器加载。为什么这样做就能解决类冲突呢？这里用到了 Java 的一个机制：不同类加载器加载的类在 JVM 看来是两个不同的类，因为在 JVM 中一个类的唯一标识是<code>类加载器+类名</code>。通过这种方式我们就能够同时加载 C 的两个不同版本的类，即使它类名是一样的。注意，这里类加载器指的是类加载器的实例，并不是一定要定义两个不同类加载器，例如图中的 PluginClassLoaderA 和 PluginClassLoaderB 可以是同一个类加载器的不同实例。<br/>
+<img src="media/15854665041217/15854719663984.jpg" alt=""/></p>
+
+<h2 id="toc_1">如何实现类隔离</h2>
+
+<p>前面我们提到类隔离就是让不同模块的 jar 包用不同的类加载器加载，要做到这一点，就需要<strong>让 JVM 能够使用自定义的类加载器加载我们写的类以及其关联的类</strong>。</p>
+
+<p>那么如何实现呢？一个很简单的做法就是 JVM 提供一个全局类加载器的设置接口，这样我们直接替换全局类加载器就行了，但是这样无法解决多个自定义类加载器同时存在的问题。</p>
+
+<p>实际上 JVM 提供了一种非常简单有效的方式，我把它称为<strong>类加载传导规则：JVM 会选择当前类的类加载器来加载所有该类的引用的类</strong>。例如我们定义了 TestA 和 TestB 两个类，TestA 会引用 TestB，只要我们使用自定义的类加载器加载 TestA，那么在运行时，当 TestA 调用到 TestB 的时候，TestB 也会被 JVM 使用 TestA 的类加载器加载。依次类推，只要是 TestA 及其引用类关联的所有 jar 包的类都会被自定义类加载器加载。通过这种方式，我们只要让模块的 main 方法类使用不同的类加载器加载，那么每个模块的都会是用 main 方法类的类加载器加载的，这样就能让多个模块分别使用不同类加载器。这也是 OSGi 和 SofaArk 能够实现类隔离的核心原理。</p>
+
+<p>了解了类隔离的实现原理之后，我们从重写类加载器开始进行实操。要实现自己的类加载器，首先让自定义的类加载器继承<code>java.lang.ClassLoader</code>，然后重写类加载的方法，这里我们有两个选择，一个是重写<code>findClass(String name)</code>，一个是重写<code>loadClass(String name)</code>。那么到底应该选择哪个？这两者有什么区别？</p>
+
+<p>下面我们分别尝试重写这两个方法来实现自定义类加载器。</p>
+
+<h3 id="toc_2">重写 findClass</h3>
+
+<p>首先我们定义两个类，TestA 会打印自己的类加载器，然后调用 TestB 打印它的类加载器，我们预期是实现重写了 findClass 方法的类加载器 MyClassLoaderParentFirst 能够在加载了 TestA 之后，让 TestB 也自动由 MyClassLoaderParentFirst 来进行加载。</p>
+
+<pre><code class="language-text">public class TestA {
+
+    public static void main(String[] args) {
+        TestA testA = new TestA();
+        testA.hello();
+    }
+
+    public void hello() {
+        System.out.println(&quot;TestA: &quot; + this.getClass().getClassLoader());
+        TestB testB = new TestB();
+        testB.hello();
+    }
+}
+
+public class TestB {
+
+    public void hello() {
+        System.out.println(&quot;TestB: &quot; + this.getClass().getClassLoader());
+    }
+}
+
+</code></pre>
+
+<p>然后重写一下 findClass 方法，这个方法先根据文件路径加载 class 文件，然后调用 defineClass 获取 Class 对象。</p>
+
+<pre><code class="language-text">public class MyClassLoaderParentFirst extends ClassLoader{
+
+    private Map&lt;String, String&gt; classPathMap = new HashMap&lt;&gt;();
+
+    public MyClassLoaderParentFirst() {
+        classPathMap.put(&quot;com.java.loader.TestA&quot;, &quot;/Users/hansong/IdeaProjects/OhMyJava/CodeRepository/target/classes/com/java/loader/TestA.class&quot;);
+        classPathMap.put(&quot;com.java.loader.TestB&quot;, &quot;/Users/hansong/IdeaProjects/OhMyJava/CodeRepository/target/classes/com/java/loader/TestB.class&quot;);
+    }
+
+    // 重写了 findClass 方法
+    @Override
+    public Class&lt;?&gt; findClass(String name) throws ClassNotFoundException {
+        String classPath = classPathMap.get(name);
+        File file = new File(classPath);
+        if (!file.exists()) {
+            throw new ClassNotFoundException();
+        }
+        byte[] classBytes = getClassData(file);
+        if (classBytes == null || classBytes.length == 0) {
+            throw new ClassNotFoundException();
+        }
+        return defineClass(classBytes, 0, classBytes.length);
+    }
+
+    private byte[] getClassData(File file) {
+        try (InputStream ins = new FileInputStream(file); ByteArrayOutputStream baos = new
+                ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int bytesNumRead = 0;
+            while ((bytesNumRead = ins.read(buffer)) != -1) {
+                baos.write(buffer, 0, bytesNumRead);
+            }
+            return baos.toByteArray();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return new byte[] {};
+    }
+}
+</code></pre>
+
+<p>最后写一个 main 方法调用自定义的类加载器加载 TestA，然后通过反射调用 TestA 的 main 方法打印类加载器的信息。</p>
+
+<pre><code class="language-text">public class MyTest {
+
+    public static void main(String[] args) throws Exception {
+        MyClassLoaderParentFirst myClassLoaderParentFirst = new MyClassLoaderParentFirst();
+        Class testAClass = myClassLoaderParentFirst.findClass(&quot;com.java.loader.TestA&quot;);
+        Method mainMethod = testAClass.getDeclaredMethod(&quot;main&quot;, String[].class);
+        mainMethod.invoke(null, new Object[]{args});
+    }
+</code></pre>
+
+<p>执行的结果如下：</p>
+
+<pre><code class="language-text">TestA: com.java.loader.MyClassLoaderParentFirst@1d44bcfa
+TestB: sun.misc.Launcher$AppClassLoader@18b4aac2
+</code></pre>
+
+<p>执行的结果并没有如我们期待，TestA 确实是 MyClassLoaderParentFirst 加载的，但是 TestB 还是 AppClassLoader 加载的。这是为什么呢？</p>
+
+<p>要回答这个问题，首先是要了解一个类加载的规则：<strong>JVM 在触发类加载时调用的是 ClassLoader.loadClass 方法</strong>。这个方法的实现了双亲委派：</p>
+
+<ol>
+<li>委托给父加载器查询</li>
+<li>如果父加载器查询不到，就调用 findClass 方法进行加载</li>
+</ol>
+
+<p>明白了这个规则之后，执行的结果的原因就找到了：JVM 确实使用了MyClassLoaderParentFirst 来加载 TestB，但是因为双亲委派的机制，TestB 被委托给了 MyClassLoaderParentFirst 的父加载器 AppClassLoader 进行加载。</p>
+
+<p>你可能还好奇，为什么 MyClassLoaderParentFirst 的父加载器是 AppClassLoader？因为我们定义的 main 方法类默认情况下都是由 JDK 自带的 AppClassLoader 加载的，根据类加载传导规则，main 类引用的 MyClassLoaderParentFirst 也是由加载了 main 类的AppClassLoader 来加载。由于 MyClassLoaderParentFirst 的父类是 ClassLoader，ClassLoader 的默认构造方法会自动设置父加载器的值为 AppClassLoader。</p>
+
+<pre><code class="language-text">    protected ClassLoader() {
+        this(checkCreateClassLoader(), getSystemClassLoader());
+    }
+</code></pre>
+
+<h3 id="toc_3">重写 loadClass</h3>
+
+<p>由于重写 findClass 方法会受到双亲委派机制的影响导致 TestB 被 AppClassLoader 加载，不符合类隔离的目标，所以我们只能重写 loadClass 方法来破坏双亲委派机制。代码如下所示：</p>
+
+<pre><code class="language-text">public class MyClassLoaderCustom extends ClassLoader {
+
+    private ClassLoader jdkClassLoader;
+
+    private Map&lt;String, String&gt; classPathMap = new HashMap&lt;&gt;();
+
+    public MyClassLoaderCustom(ClassLoader jdkClassLoader) {
+        this.jdkClassLoader = jdkClassLoader;
+        classPathMap.put(&quot;com.java.loader.TestA&quot;, &quot;/Users/hansong/IdeaProjects/OhMyJava/CodeRepository/target/classes/com/java/loader/TestA.class&quot;);
+        classPathMap.put(&quot;com.java.loader.TestB&quot;, &quot;/Users/hansong/IdeaProjects/OhMyJava/CodeRepository/target/classes/com/java/loader/TestB.class&quot;);
+    }
+
+    @Override
+    protected Class&lt;?&gt; loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        Class result = null;
+        try {
+            //这里要使用 JDK 的类加载器加载 java.lang 包里面的类
+            result = jdkClassLoader.loadClass(name);
+        } catch (Exception e) {
+            //忽略
+        }
+        if (result != null) {
+            return result;
+        }
+        String classPath = classPathMap.get(name);
+        File file = new File(classPath);
+        if (!file.exists()) {
+            throw new ClassNotFoundException();
+        }
+
+        byte[] classBytes = getClassData(file);
+        if (classBytes == null || classBytes.length == 0) {
+            throw new ClassNotFoundException();
+        }
+        return defineClass(classBytes, 0, classBytes.length);
+    }
+
+
+    private byte[] getClassData(File file) { //省略 }
+
+}
+
+</code></pre>
+
+<p>这里注意一点，我们重写了 loadClass 方法也就是意味着所有类包括 java.lang 包里面的类都会通过 MyClassLoaderCustom 进行加载，但类隔离的目标不包括这部分 JDK 自带的类，所以我们用 ExtClassLoader 来加载 JDK 的类，相关的代码就是：<code>result = jdkClassLoader.loadClass(name);</code></p>
+
+<p>测试代码如下：</p>
+
+<pre><code class="language-text">public class MyTest {
+
+    public static void main(String[] args) throws Exception {
+        //这里取AppClassLoader的父加载器也就是ExtClassLoader作为MyClassLoaderCustom的jdkClassLoader
+        MyClassLoaderCustom myClassLoaderCustom = new MyClassLoaderCustom(Thread.currentThread().getContextClassLoader().getParent());
+        Class testAClass = myClassLoaderCustom.loadClass(&quot;com.java.loader.TestA&quot;);
+        Method mainMethod = testAClass.getDeclaredMethod(&quot;main&quot;, String[].class);
+        mainMethod.invoke(null, new Object[]{args});
+    }
+}
+</code></pre>
+
+<p>执行结果如下：</p>
+
+<pre><code class="language-text">TestA: com.java.loader.MyClassLoaderCustom@1d44bcfa
+TestB: com.java.loader.MyClassLoaderCustom@1d44bcfa
+</code></pre>
+
+<p>可以看到，通过重写了 loadClass 方法，我们成功的让 TestB 也使用MyClassLoaderCustom 加载到了 JVM 中。</p>
+
+<h2 id="toc_4">总结</h2>
+
+<p>类隔离技术是为了解决依赖冲突而诞生的，它通过自定义类加载器破坏双亲委派机制，然后利用类加载传导规则实现了不同模块的类隔离。</p>
+
+<h2 id="toc_5">参考资料</h2>
+
+<p><a href="https://www.ibm.com/developerworks/cn/java/j-lo-classloader/index.html">深入探讨 Java 类加载器</a></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Java 日志框架冲突问题排查与总结]]></title>
+    <link href="https://blog.xiaohansong.com/java-log-confict-solve.html"/>
+    <updated>2019-11-27T19:44:15+08:00</updated>
+    <id>https://blog.xiaohansong.com/java-log-confict-solve.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>Java 有很多的日志框架可以选择，当同一个项目中出现多种日志框架时就很容易出现日志框架冲突的问题，导致日志打印不出来。本文将以一次典型的日志冲突排查问题为例，提供排查步骤和思路，最后分析日志框架冲突的原因。</p>
+
+<p>一般行文思路都是先讲 Why，再讲 How，这里我颠倒了，因为一般遇到问题的时候我们对问题背后的根本原因是一无所知的，如果我们已经知道问题的原因，那么问题也就迎刃而解了。因此我希望先复现我当时在对日志框架了解不多的情况下排查问题的思路和步骤，如何在面对未知问题找到破题思路是非常重要的技能。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">一次典型的日志冲突排查</h2>
+
+<h3 id="toc_2">问题背景</h3>
+
+<p>在 A 工程中，日志框架配置选用了 Log4j2，master 分支上日志打印正常，但开发分支增加了代码之后日志打印不出来。项目的依赖中包含了 Log4j2、Logback 等日志框架。</p>
+
+<h3 id="toc_3">排查思路与过程</h3>
+
+<p>排查问题的时候首先必须要有明确的思路，即大胆假设，小心求证，不能像无头苍蝇一样乱试。从问题的现象看，直觉上可以得出几个假设：</p>
+
+<ol>
+<li>服务器环境有问题</li>
+<li>开发分支的 Log4j2 配置有问题</li>
+</ol>
+
+<p>接下来就是验证假设，首先多申请几台机器部署项目分支，发现问题仍然存在，可以排除第一个假设。其次找到另一个工程 B 跟 A 工程对比 Log4j2 的配置，也没有发现明细的差异，可以排除第二个假设。</p>
+
+<p>在已有假设都验证失败的情况下，需要收集更多的信息作出判断，接下来就是要用对照实验收集信息。于是我分别断点了 A 和 B 两个工程，观察它们日志实体的类型是否一致。结果发现两者的日志实体类型不一样，A 的日志实现是 Logback，B 的日志实现是 Log4j2，很明显 A 打印不出日志是因为日志实体不对，但是两者都是用的同一个 LoggerFactory 创建 Logger 的。从对照实验的结果来看，可以得出一个假设：<strong>依赖冲突导致了 A 运行时使用日志实体不是 Log4j2。</strong></p>
+
+<p>至此我们已经找到了问题的大致方向，接下来就是要排包。排包一般有两种思路：</p>
+
+<ol>
+<li>暴力求解：把所有可能冲突的日志包排掉，一个个试。</li>
+<li>精准爆破：利用类加载的信息判断运行时加载的具体是哪个 jar</li>
+</ol>
+
+<p>暴力求解的方式太花费时间了，所以我用的第二种方式。</p>
+
+<p>获取日志实体的方式如下：</p>
+
+<pre><code class="language-text">    private static final Logger LOGGER = LoggerFactory
+            .getLogger(xxx.class);
+</code></pre>
+
+<p>LoggerFactory 的代码如下：</p>
+
+<pre><code class="language-text">public abstract class LoggerFactory extends LogFactory {
+
+    public static Logger getLogger(Class clazz) {
+        ClassLoader oldTccl = Thread.currentThread().getContextClassLoader();
+
+        try {
+            Thread.currentThread().setContextClassLoader(LoggerFactory.class.getClassLoader());
+            return getLogger(getLog(clazz));
+        } finally {
+            Thread.currentThread().setContextClassLoader(oldTccl);
+        }
+    }
+}
+</code></pre>
+
+<p>从代码上可以发现，<code>getLog</code>方法是来自父类<code>LogFactory</code>，当我去尝试获取<code>LogFactory</code>的实现时候，发现竟然有 3 个 jar 中都有同样包名的<code>LogFactory</code>实现。于是我断点了 A 和 B 工程的代码，用 IDEA 的运行代码功能执行以下命令获取<code>LogFactory</code>的加载信息。</p>
+
+<p><img src="media/15748550557497/15750963654649.jpg" alt="" style="width:818px;"/></p>
+
+<p>结果发现 B 工程使用是<code>spring-jcl</code>，A 使用的是<code>jcl-over-slf4j</code>，然后排除掉 A 中<code>jcl-over-slf4j</code>，问题解决。</p>
+
+<p>上面的排查过程中，关键的地方有两点：</p>
+
+<ol>
+<li>定位到问题的根源是类加载冲突，确定排查方向。</li>
+<li>通过断点获取冲突类的加载信息，快速定位到冲突的 jar。</li>
+</ol>
+
+<h2 id="toc_4">为什么日志框架会冲突</h2>
+
+<p>问题至此就解决了，但是还有一个更深入的问题没有解决：为什么同时存在多个日志框架的时候就会出现冲突呢？在解决完问题之后，我深入研究了日志框架的历史和设计，发现原来这跟日志框架的实现机制有关系。</p>
+
+<h3 id="toc_5">日志框架的历史</h3>
+
+<p>首先要从日志框架的发展历史开始说起。</p>
+
+<ul>
+<li>首先登场是<code>Java Util Log</code>，简称JUL，是JDK 中自带的 log 功能。虽然是官方自带的，JUL 的使用却不广泛，主要是因为功能比较简单，不好用。</li>
+<li>然后<code>Log4j 1.x</code>就登场了：它是 Gülcü 设计实现的日志框架，设计非常优秀，是非常广泛使用的框架。</li>
+<li><code>Commons Logging</code>：简称 JCL，是 Apache 的项目。JCL 是一个 Log Facade，只提供 Log API，不提供实现，用 Adapter 来使用 Log4j 或者 JUL 作为 Log Implementation。目的是统一日志接口规范，适配多种日志实现。</li>
+<li><code>SLF4J/Logback</code>：SLF4J(The Simple Logging Facade for Java) 和 Logback 也是 Gülcü 创立的项目，其创立主要是为了提供更高性能的实现。其中，SLF4j 是类似于JCL 的Log Facade，Logback 是类似于Log4j 的 Log Implementation。这老哥觉得 JCL 的接口设计不好，所以重新设计了一套。</li>
+<li><code>Log4j2</code>：维护 Log4j 的人为了不让 Log4j 的用户被 SLF4J/Logback 抢走，所以搞出了新的日志框架。Log4j2 和 Log4j1.x 并不兼容，设计上很大程度上模仿了 SLF4J/Logback，性能上也获得了很大的提升。Log4j2 也做了 Facade/Implementation 分离的设计，分成了 log4j-api 和 log4j-core。</li>
+</ul>
+
+<p>至此我们已经有了三个的 Log 接口和四个 Log 实现，果然程序员真的是爱造轮子。出现这么多框架之后，有人开始搞各个框架之间的桥接，你兼容我，我兼容你，如下图所示。</p>
+
+<p><img src="media/15748550557497/15750975835057.jpg" alt=""/></p>
+
+<p>因为很多 jar 使用的日志框架不同，所以经常会出现引入 jar 包之后导致日志类冲突，前面我们排查的那个问题就是因为引入了 jcl-over-slf4j 的桥接包。</p>
+
+<h3 id="toc_6">动态加载日志实现</h3>
+
+<p>前面我们提到日志框架分为日志接口和日志实现，只要我们代码中使用的是日志接口（JCL、SLF4J），我们可以随时替换日志的实现。</p>
+
+<h4 id="toc_7">SLF4J 加载日志实现的方式</h4>
+
+<p>SLF4J 加载日志实现分为两个步骤：</p>
+
+<ol>
+<li>获取 ILoggerFactory 日志工厂</li>
+<li>根据 ILoggerFactory 获取 Logger</li>
+</ol>
+
+<p>SLF4J 要求日志实现 jar 包都要实现 StaticLoggerBinder 这个类，而且要放在指定目录：<code>org/slf4j/impl/StaticLoggerBinder.class</code>，SLF4J 的<code>LoggerFactory</code>会去扫描所有 jar 包中的这个地址，参考下面的代码。</p>
+
+<pre><code class="language-text">private static String STATIC_LOGGER_BINDER_PATH = &quot;org/slf4j/impl/StaticLoggerBinder.class&quot;;
+
+static Set&lt;URL&gt; findPossibleStaticLoggerBinderPathSet() {
+        LinkedHashSet staticLoggerBinderPathSet = new LinkedHashSet();
+        //加载所有可能日志工厂类
+        try {
+            ClassLoader ioe = LoggerFactory.class.getClassLoader();
+            Enumeration paths;
+            if(ioe == null) {
+                paths = ClassLoader.getSystemResources(STATIC_LOGGER_BINDER_PATH);
+            } else {
+                paths = ioe.getResources(STATIC_LOGGER_BINDER_PATH);
+            }
+
+            while(paths.hasMoreElements()) {
+                URL path = (URL)paths.nextElement();
+                staticLoggerBinderPathSet.add(path);
+            }
+        } catch (IOException var4) {
+            Util.report(&quot;Error getting resources from path&quot;, var4);
+        }
+
+        return staticLoggerBinderPathSet;
+    }
+</code></pre>
+
+<p>虽然它扫描了多个日志实现，但实际上同名类 JVM 只能存在一个，它这里扫描的目的是为了打印日志告诉用户有多少个日志实现在依赖包中。下面的代码返回的是最终使用的日志实现。</p>
+
+<pre><code class="language-text">public static ILoggerFactory getILoggerFactory() {
+        if (INITIALIZATION_STATE == UNINITIALIZED) {
+            synchronized (LoggerFactory.class) {
+                if (INITIALIZATION_STATE == UNINITIALIZED) {
+                    INITIALIZATION_STATE = ONGOING_INITIALIZATION;
+                    performInitialization();
+                }
+            }
+        }
+        switch (INITIALIZATION_STATE) {
+        case SUCCESSFUL_INITIALIZATION:
+        //这里通过静态方法返回真正使用的日志工程类
+            return StaticLoggerBinder.getSingleton().getLoggerFactory();
+        case NOP_FALLBACK_INITIALIZATION:
+            return NOP_FALLBACK_FACTORY;
+        case FAILED_INITIALIZATION:
+            throw new IllegalStateException(UNSUCCESSFUL_INIT_MSG);
+        case ONGOING_INITIALIZATION:
+            // support re-entrant behavior.
+            // See also http://jira.qos.ch/browse/SLF4J-97
+            return SUBST_FACTORY;
+        }
+        throw new IllegalStateException(&quot;Unreachable code&quot;);
+    }
+</code></pre>
+
+<p>你可能要问了，同时存在多个日志实现类的时候，到底是用的是哪个？答案很简单，因为 SLF4J 利用了静态类来加载日志工程，实际上就是让 JVM 决定使用哪个类：哪个被先加载到 JVM 中就用哪个。为了搞清楚这个问题的答案，我特地去看了<code>URLClassPath</code>加载类的实现，它就是按照 jar 加入到 <code>URLClassPath</code>的顺序遍历扫描，找到第一个符合条件的就返回。</p>
+
+<h4 id="toc_8">JCL 加载日志实现的方式</h4>
+
+<p>相比 SLF4J 比较任性的加载方式（依赖 JVM 加载类的顺序），JCL 提供了更多的配置能力，可以指定使用哪一个日志工程类。</p>
+
+<p>类似的，JCL 也分为两个步骤加载日志实现：</p>
+
+<ol>
+<li>获取 LogFactory 日志工厂类</li>
+<li>根据 LogFactory 获取 Logger</li>
+</ol>
+
+<p>首先是获取 LogFactory：</p>
+
+<ol>
+<li>先从系统属性中读取系统属性<code>System.getProperty(&quot;org.apache.commons.logging.LogFactory&quot;)</code></li>
+<li>使用 Java 的 SPI 机制，来搜寻对应的实现：<code>META-INF/services/org.apache.commons.logging.LogFactory</code>，这里就不对 SPI 进行过多介绍了，简单来说就是搜寻哪些 jar 包中含有搜寻含有上述文件，该文件中指明了对应的 LogFactory 实现</li>
+<li>从 commons-logging 的配置文件中 commons-logging.properties 寻找<code>org.apache.commons.logging.LogFactory</code>的值</li>
+<li>最后还没找到的话，使用默认的<code>org.apache.commons.logging.impl.LogFactoryImpl</code></li>
+</ol>
+
+<p>找到 LogFactory 之后就根据 LogFactory 获取 Logger，这个根据不同的 LogFactory 实现有不同的方式。前面我遇到那个问题就是因为类冲突导致使用了 SLJ4J 的 LogFactory ，加载了错误的 Logger。</p>
+
+<h2 id="toc_9">总结</h2>
+
+<p>开发过程中总会遇到奇奇怪怪的问题，有无处下手的感觉时先稳住心态，按照大胆假设，小心求证的方式进行排查，实在没有思路往往是因为基础还不扎实。像这次日志打印不出来的问题，如果了解日志框架的加载实现，很容易就能定位到问题；差一点的像我不了解日志框架的实现，但是我可以根据之前对类加载机制的了解也能解决问题；如果对类加载机制不了解，那基本上是无解了。因此，要把问题当做学习机会，不光要解决问题，还要深挖背后的原理，做好总结，这样才能为解决更多的问题打下扎实基础。</p>
+
+<!--附一下我以前查问题做的总结
+- [环境问题的排查经验及总结](https://www.atatech.org/articles/102346)
+- [解决技术问题的思考：以解析PDF遇到的问题为例](https://www.atatech.org/articles/86637)-->
+
+<h2 id="toc_10">参考资料</h2>
+
+<ul>
+<li><a href="https://zhuanlan.zhihu.com/p/24272450">Java 日志框架解析(上) - 历史演进</a></li>
+<li><a href="https://my.oschina.net/pingpangkuangmo/blog/407895">jcl与jul、log4j1、log4j2、logback的集成原理</a></li>
+<li><a href="https://my.oschina.net/pingpangkuangmo/blog/408382">slf4j与jul、log4j1、log4j2、logback的集成原理</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[多视角看区块链]]></title>
+    <link href="https://blog.xiaohansong.com/blockchain.html"/>
+    <updated>2019-08-05T10:33:19+08:00</updated>
+    <id>https://blog.xiaohansong.com/blockchain.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>像很多新技术一样，区块链开始火起来的时候评价是两级分化的，有人觉得区块链会成为下一代的互联网的基础设施，有人觉得区块链没有任何价值。很多时候观点的不同是因为看的角度不一样，如果能从多个角度看区块链，或许能得到更客观的观点，因此本文会分别从技术和业务的视角来分析区块链。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">从技术的视角看区块链</h2>
+
+<p>从技术的角度看，<strong>区块链是一种分布式防篡改账本，由于其独特的链式结构和共识机制保证了数据不可篡改。</strong></p>
+
+<p>首先区块链是一个分布式系统，而且要保证所有节点的数据保持一致，那么就必然涉及到一致性协议。一致性协议在区块链的语境里面一般叫做共识协议，像POW，POS，DPOS，PBFT 等等，本质上都是一致性协议，主要解决分布式系统中数据复制的问题。</p>
+
+<p>其次区块链的存储结构是链式的，可以把它理解为一个大链表，结合了密码学的技术它能够做到不可篡改。它是如何做到这一点的呢？我们拿比特币来举例，</p>
+
+<ol>
+<li>利用 hash 值作为每个块之间的连接指针，修改了块里面的数据就会导致指针变化，进而链条就断了，这样保证修改链上的某个数据会立马被其他节点发现。</li>
+<li>区块链所有节点都通过共识机制保存同样的数据，所以你修改了一个节点的数据是没有用的，必须要修改超过一半的节点数据才有用。</li>
+<li>比特币的 POW 共识机制和最长链机制决定了要修改链上数据必须要掌握超过 50% 的算力才能做到。</li>
+</ol>
+
+<p>值得注意的是区块链的不可篡改实际上指的是要篡改数据很难，并不是说真的不能篡改数据。可以发现区块链的技术特性是由多种技术组合而成的，它并不是一个全新的技术。</p>
+
+<p>最后是智能合约，智能合约说白了就是在区块链上执行的代码，它的特别之处在于它能够修改链上的状态数据，例如说用户的余额，利用智能合约就可以实现转账支付的功能。可以类比为数据库中的存储过程。</p>
+
+<p>从某些角度上看，区块链和数据库是有相似之处的。在区块链的世界里面，交易和交易产生的状态是严格分离的，例如说比特币里面的每笔交易是一笔转账流水，而用户的余额则是维护在特定的状态数据结构里面。这种实际上就是事件和状态分离的设计。根据交易的流水可以推导出用户的余额，本质上都是<strong>从一个初始化状态，结合所有发生的事件，来推导任意时刻的状态。</strong></p>
+
+<p>数据库也是类似的，数据库每次执行都是先记录执行日志，这样能够保证数据恢复的时候能利用这些日志。这里的日志记录的就是事件，而数据库表中的数据就是状态。从这个层面上看，区块链和数据库是非常相似的，只不过区块链把事件和状态直接暴露给了使用者，而数据库只会暴露状态给使用者。</p>
+
+<p>其实区块链和数据库的差异主要源于设计目的的不同，区块链是为了去中心且不安全的情况执行通用计算，因此它为了去中心化和安全的目标放弃了性能。而数据库的设计目标是为了方便管理数据，一般都是运行在可控的环境里面，不用考虑安全和去中心化的问题。</p>
+
+<p>区块链技术的标准现在还没有准确的定义。现在处于百花齐放的状态，各家都有各家的技术实现。区块链其实是脱胎于比特币，也就是说它是为了实现比特币产生的技术，如果后面 Libra 使用的技术跟现在我们看到的区块链技术完全不一样也不用惊讶，业务和技术是相辅相成的，最后的赢家会定义什么才是真正的区块链技术。</p>
+
+<h2 id="toc_2">从业务视角看区块链</h2>
+
+<p>从业务的角度看，<strong>区块链本质上是一种共识机制。它的价值在于通过防篡改保证事实的不可抵赖，建立人对机器的信任，提升形成共识的效率。</strong>以比特币为例，国家货币是以国家信用背书的，黄金是人们对贵金属的价值有共识，那么比特币到底凭什么这么值钱？关键就是共识，比特币总量恒定，产生新的比特币需要用算力挖矿，区块链技术保证了这个机制是安全可靠的，所以人们形成了对比特币的共识，或者说信任。这种信任就像人们信任支付宝一样，支付宝是由阿里这个大公司背书，而替比特币背书的就是区块链技术。</p>
+
+<p>现在很多的区块链应用场景都是多个机构做数据共享，数据共享这个事情当有中心化的平台其实效率是最高的，所有人都信任中心平台，数据以中心平台为准。但是在实际落地过程中也会有阻力，因为中心化意味着要让渡参与者的权利，很多场景下这是很困难的。所以用联盟链的方式来做数据共享，技术上其实是没有提升效率的，但是因为这种多中心的模式能够让参与方更容易接受，有时候反而能够推动业务落地。</p>
+
+<p>很多人认为区块链的价值在于去中心化，但是中心化才是互联网发展的趋势，人们为了效率而中心化，为了反抗垄断而要去中心化。比特币的出现是对中心化的货币发起的反抗，它做到了完全的去中心化，但是却牺牲了效率，每秒只能做几笔交易，因此也不可能真的作为世界货币。所以区块链在未来的应用形态应该是多中心，也就是联盟链，介于中心化和完全去中心化之间。Libra 币就是多中心的数字货币，由多个公司形成联盟，它不属于任何一家公司。Libra 的目标是要成为世界货币，因此效率必须要高，同时也要借助区块链来形成共识，保证不能随便发币以及价格的稳定。</p>
+
+<p>虽然区块链有很多美好的想象，但就跟很多新技术一样，目前技术还不成熟，曾鸣教授说区块链现在有点像90年代的互联网，还缺少一个像浏览器一样的杀手级应用。我个人觉得 Libra 有可能就是那个杀手级应用，并且它会定义新的区块链技术标准。Libra 跟比特币不一样，它不是完全去中心化的，更准确的描述是多中心，如果要类比的话它更像是欧元，Libra 协会就像是欧盟，只不过是国家变成了公司。</p>
+
+<p>本文虽然花了很多篇幅讨论区块链的技术，但是我们不能只局限于技术本身，脱离了具体的业务场景讨论技术没有任何价值。所以我们不用去纠结它的技术实现是去中心化和中心化的问题，<strong>区块链的核心价值在于共识机制，它的所有技术实现都是为了这个目标服务的，块链结构，智能合约等等这些都是为了建立人对区块链技术的信任，然后基于这种信任去构建业务上的共识机制，进而进行大规模的网络协同。</strong>王兴说过一句话很有道理：“讨论 Libra 背后的技术实现好不好就像讨论美元钞票的印刷技术精细不精细”。</p>
+
+<h2 id="toc_3">总结</h2>
+
+<p>本文从技术的角度简单分析区块链的核心技术特性，并且跟数据库进行了对比，区块链从技术的角度看就是一个分布式防篡改账本；然后从业务的角度分析了区块链的价值在于通过防篡改保证事实的不可抵赖，提升形成共识的效率；最后我们也要清醒的认识到区块链不是银弹，区块链的发展还有很长的路要走，这不是一个单纯技术进化的问题，而且如何真正落地解决社会问题的过程，解决的问题越大，区块链的价值就越大。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[分布式系统：CAP 理论的前世今生]]></title>
+    <link href="https://blog.xiaohansong.com/cap-theorem.html"/>
+    <updated>2019-04-08T09:50:58+08:00</updated>
+    <id>https://blog.xiaohansong.com/cap-theorem.html</id>
+    <content type="html"><![CDATA[
+<p>CAP 理论是分布式系统设计中的一个重要理论，虽然它为系统设计提供了非常有用的依据，但是也带来了很多误解。本文将从 CAP 诞生的背景说起，然后对理论进行解释，最后对 CAP 在当前背景下的一些新理解进行分析，澄清一些对 CAP 的误解。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">CAP 理论诞生的背景</h2>
+
+<p>CAP 理论的是在“数据一致性 VS 可用性”的争论中产生。CAP 的作者 Brewer 在 90 年代的时候就开始研究基于集群的跨区域系统（实质上是早期的云计算），对于这类系统而言，系统可用性是首要目标，因此他们采用了缓存或者事后更新的方式来优化系统的可用性。尽管这些方法提升了系统的可用性，但是牺牲了系统数据一致性。</p>
+
+<p>Brewer 在 90 年代提出了 BASE 理论（基本可用、软状态、最终一致性），这在当时还不怎么被接受。因为大家还是比较看重 ACID 的优点，不愿意放弃强一致性。<strong>因此，Brewer 提出了 CAP 理论，目的就是为了开阔分布式系统的设计空间，通过“三选二”的公式，解放思想，不要只抓着一致性不放。</strong></p>
+
+<p>理解了 CAP 诞生的背景，我们才能更加深入的理解 CAP 理论，以及它带来的启示。“三选二”的观点虽然帮助大家开拓了设计思路，但是也带来了很多误解。下面我们会逐一分析，首先来看一下 CAP 理论的解释。</p>
+
+<h2 id="toc_1">CAP 理论的经典解释</h2>
+
+<p>CAP 定理是分布式系统设计中最基础，也是最为关键的理论。它指出，分布式数据存储不可能同时满足以下三个条件。</p>
+
+<ul>
+<li><strong>一致性（Consistency）</strong>：每次读取要么获得最近写入的数据，要么获得一个错误。</li>
+<li><strong>可用性（Availability）</strong>：每次请求都能获得一个（非错误）响应，但不保证返回的是最新写入的数据。</li>
+<li><strong>分区容忍（Partition tolerance）</strong>：尽管任意数量的消息被节点间的网络丢失（或延迟），系统仍继续运行。</li>
+</ul>
+
+<p>CAP 定理表明，在存在网络分区的情况下，一致性和可用性必须二选一。<strong>当网络发生分区（不同节点之间的网络发生故障或者延迟较大）时，要么失去一致性（允许不同分区的数据写入），要么失去可用性（识别到网络分区时停止服务）。</strong>而在没有发生网络故障时，即分布式系统正常运行时，一致性和可用性是可以同时被满足的。这里需要注意的是，CAP 定理中的一致性与 ACID 数据库事务中的一致性截然不同。ACID 的 C 指的是事务不能破坏任何数据库规则，如键的唯一性。与之相比，CAP 的 C 仅指单一副本这个意义上的一致性，因此只是 ACID 一致性约束的一个严格的子集。</p>
+
+<p>CAP 理论看起来难理解，其实只要抓住一个核心点就能推导出来，不用死记硬背。在出现网络分区的时候，</p>
+
+<ul>
+<li>如果系统不允许写入，那么意味着降低了系统的可用性，但不同分区的数据能够保持一致，即选择了一致性。</li>
+<li>如果系统允许写入，那么意味着不同分区之间的数据产生不一致，系统可用性得到保障，即选择可用性。</li>
+</ul>
+
+<h2 id="toc_2">CAP 的新理解</h2>
+
+<p>CAP 经常被误解，很大程度上是因为在讨论 CAP 的时候可用性和一致性的作用范围往往都是含糊不清的。如果不先定义好可用性、一致性、分区容忍在具体场景下的概念，CAP 实际上反而会束缚系统设计的思路。首先，由于分区很少发生，那么在系统不存在分区的情况下没什么理由牺牲 C 或 A。其次，C 与 A 之间的取舍可以在同一系统内以非常细小的粒度反复发生，而每一次的决策可能因为具体的操作，乃至因为牵涉到特定的数据或用户而有所不同。最后，这三种性质都可以在程度上都可以进行度量，并不是非黑即白的有或无。可用性显然是在 0% 到 100% 之间连续变化的，一致性分很多级别，连分区也可以细分为不同含义，如系统内的不同部分对于是否存在分区可以有不一样的认知。</p>
+
+<h3 id="toc_3">什么是分区容忍</h3>
+
+<p>在现实世界中，正常情况下分布式系统各个节点之间的通信是可靠的，不会出现消息丢失或者延迟很高的情况，但是网络是不可靠的，总会偶尔出现消息丢失或者消息延迟很高的情况，这个时候不同区域的节点之间在一段时间内就会出现无法通信的情况，也就是发生了分区。</p>
+
+<p><strong>分区容忍就是指分布式系统在出现网络分区的时候，仍然能继续运行，对外提供服务。</strong>注意，这里所说的仍然能够对外提供服务跟可用性的要求不一样，可用性要求的是对于任意请求都能得到响应，意味着即使出现网络分区所有节点都能够提供服务。而分区容忍的重点在于出现网络分区之后，系统仍然是可用的（包括部分可用）。</p>
+
+<p>举个例子：使用 Paxos 进行数据复制的系统就是典型的 CP 系统，即使出现网络分区，主分区也能够提供服务，所以它是分区容忍的。再举个反例：使用 2PC 进行数据复制的系统没有分区容忍的特性，当出现网络分区时，整个系统都会阻塞。</p>
+
+<h3 id="toc_4">可用性的范围</h3>
+
+<p>可用性其实很直观：每次请求都能获得一个（非错误）响应，但不保证返回的是最新写入的数据。换一个说法就是<strong>对于分布式系统中的每个节点，都能够对外部请求做出响应，但不要求一致性。</strong></p>
+
+<p>经常让我们疑惑的问题是衡量系统可用性的标准是什么？其实关键点在于可用性的范围，脱离了具体场景下的可用性范围是没有意义的。讨论可用性是要有具体场景来划分边界的，简单的认为某个算法是满足可用性要求其实并不严谨，因为在工程实现中会有很多的技巧去弥补修正。</p>
+
+<p>举个例子：谷歌文档就是非常典型的 AP 系统，它在网络断了的情况下也能够使用。诀窍在于它在发现网络断了之后会进入离线模式，允许用户继续进行编辑，然后在网络恢复之后再对修改的内容进行合并处理。可以发现对于谷歌文档来说，用户的浏览器也是它系统的一个节点，当出现网络分区时，它仍然能够为用户提供服务，但是代价是放弃了一致性，因为用户做的修改只有本地知道，服务端是不清楚的。所以在这个例子里面，可用性的范围是包括了用户浏览器在内的，不是我们常规理解的分布式系统的节点一定就是服务端的机器。</p>
+
+<p>值得注意的是在现实世界中，我们一般不会去追求完美的可用性，所以一般的说法是高可用，即尽可能保证更多的节点服务可用。这也是为什么 Paxos 这类的一致性算法越来越流行的原因之一。</p>
+
+<h3 id="toc_5">一致性的范围</h3>
+
+<p><strong>讨论一致性的时候必须要明确一致性的范围，即在一定的边界内状态是一致的，超出边界之外的一致性是无从谈起的。</strong>比如 Paxos 在发生网络分区的时候，在一个主分区内可以保证完备的一致性和可用性，而在分区外服务是不可用的。值得注意的是，当系统在分区的时候选择了一致性，也就是 CP，并不意味着完全失去了可用性，这取决于一致性算法的实现。比如标准的两阶段提交发生分区的时候是完全不可用的，而 Paxos 则保证了主分区的一致性和可用性。</p>
+
+<p>经过上面的讨论可以发现，可用性的范围要求比一致性的范围要求要更严格，CAP 理论中的可用性要求的是整个系统的可用性，即使出现部分节点不可用也算是违反了可用性约束。而一致性的要求则没有那么高，发生网络分区的时候只要保证主分区数据一致性，也认为系统是符合一致性约束的。为什么这么说呢？因为当出现网络分区的时候，客户端只要通过访问主分区就能得到最新的值（访问超过半数以上节点，如果值都相同说明访问的数据是最新的），此时系统是满足 CAP 理论中一致性的要求的。</p>
+
+<h2 id="toc_6">管理分区</h2>
+
+<p>网络分区是分布式系统中必然发生的事情，经典的 CAP 理论是忽略网络延迟的，但是在现实世界中，网络延迟跟分区密切相关。也就是说当系统在有限的时间内无法通信达成一致（网络延迟很高），就意味着发生了分区。此时就需要在一致性和可用性之间做出选择：选择继续重试就意味着选择一致性，放弃可用性；放弃数据一致性让操作完成就意味着选择了可用性。值得注意的是在分区的时候放弃数据一致性并不是意味着完全不管，一般工程实现会采用重试的方式达到最终一致性。</p>
+
+<p>通过上面的分析可以发现，平衡分区期间可用性和一致性的影响是分布式系统设计中的关键问题。因此，管理分区不仅是需要主动发现分区，还需要针对分区期间产生的影响准备恢复过程。也就是说<strong>我们可以从另一个角度来应用 CAP 理论：系统进入分区模式的时候，如何在一致性和可用性之间做出选择。</strong></p>
+
+<p>管理分区有三个步骤：<br/>
+<img src="media/15546882588335/15559861347366.jpg" alt=""/></p>
+
+<ul>
+<li>检测到分区开始</li>
+<li>明确进入分区模式，限制某些操作</li>
+<li>当通信恢复后启动分区恢复过程</li>
+</ul>
+
+<p>当系统进入分区模式之后，有两种选择：</p>
+
+<ul>
+<li>选择一致性：例如 Paxos 算法，只有大多数的主分区能够进行操作，其他分区不可用，当网络恢复之后少数节点跟多数节点同步数据。</li>
+<li>选择可用性：例如谷歌文档，出现分区时进入离线模式，等网络恢复了客户端跟服务端数据进行合并恢复。</li>
+</ul>
+
+<h2 id="toc_7">总结</h2>
+
+<p><strong>理论抽象于现实，服务于现实，但绝不等于现实。对 CAP 理论“三选二”的误解就源于我们经常把理论等同于现实。</strong>CAP 的诞生主要是为了拓宽设计思路，不要局限在强一致性的约束中。简单的把“三选二”进行套用反而限制了设计思路。在现实世界中，不同业务场景对可用性和一致性的要求不一样，并且一致性和可用性的范围和区间是动态变化的，并不是非此即彼。因此，准确理解 CAP 理论，从管理分区的角度出发，结合具体的业务场景，才能做出更好的系统设计。</p>
+
+<h2 id="toc_8">参考资料</h2>
+
+<ul>
+<li><a href="https://ieeexplore.ieee.org/document/6133253">CAP twelve years later: How the &quot;rules&quot; have changed</a></li>
+<li><a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1.2034&amp;rep=rep1&amp;type=pdf">Cluster-Based Scalable Network Services</a></li>
+<li><a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.24.3690&amp;rep=rep1&amp;type=pdf">Harvest, Yield and Scalable Tolerant Systems</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[分布式系统：持续一致性]]></title>
+    <link href="https://blog.xiaohansong.com/Continuous-Consistency.html"/>
+    <updated>2019-03-15T09:20:03+08:00</updated>
+    <id>https://blog.xiaohansong.com/Continuous-Consistency.html</id>
+    <content type="html"><![CDATA[
+<p>在分布式系统中，数据复制一般是为了增强系统的可用性或提高性能，但是数据一致性跟系统性能往往是矛盾的，对于数据复制的一致性问题没有最好的解决方法。除非放宽对一致性的要求才能获取特定场景下面的有效解决方法。那么放宽一致性的标准是什么？为此，Yu 和 Vahdat 提出了一种用于衡量不一致性以及表述系统中能够容忍哪些不一致性的模型：持续一致性。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">什么是持续一致性</h2>
+
+<p>在上一篇文章《<a href="consistency-model.html">分布式系统：一致性模型</a>》中可以发现，在数据复制的场景中，数据一致性跟系统性能是矛盾，对数据一致性的要求越高，系统的整体性能越低。对于数据复制的一致性问题没有最好的解决方法。目前实际应用的一致性模型大部分都是通过放宽一致性的要求来提升性能，例如因果一致性放弃了对无因果关系的事件的顺序的一致性，减少了一致性所要付出的代价。<br/>
+日常生活中，一个人是否近视，近视多少度是有统一的标准可以依据的，否则医生没法做出判断。同样的，作为系统的设计者面对一致性问题的时候也需要有一个标准，在性能和一致性之间做出权衡，那么现在问题来了：衡量不一致性的标准是什么？<br/>
+为了解决上面的问题，Yu 和 Vahdat 提出了<strong>一种用于衡量不一致性以及表述系统中能够容忍哪些不一致性的模型：持续一致性。</strong></p>
+
+<p>持续一致性定义了不一致性的三个独立坐标轴：<strong>数值偏差、顺序偏差、新旧偏差</strong>（不一致性的三个衡量标准），这些偏差构成了持续一致性的范围：</p>
+
+<ul>
+<li><strong>数值偏差限制了一个副本有多少未看到的其他副本写操作的权重（权重主要用于衡量不同写操作的重要性，当假设所有写操作权重相等时，权重即写操作的数量；当写操作的对象是数值时，可以用数值的差值作为权重），用于衡量当前副本值跟全局最终值之间的偏差。可以简单理解为未全局更新的写操作数量。</strong>例如在股票市场的价格记录的复制场景中，应用可以指定两个副本间的价格偏差不能超过 0.02 美元，这就是这个系统能够容忍的最大数值偏差。</li>
+<li><strong>顺序偏差限制了一个副本中暂存写操作的数量，用于衡量暂存的写操作在本地副本的顺序与最终提交的写操作全局最终顺序之间的差异。</strong>顺序偏差相对来说比较难理解，首先当允许副本间有差异的时候，那么必定有一个时刻副本会暂存一些写操作，这些写操作在全局提交之后才会成为永久更新，但是这些写操作不一定都能提交成功，它可能会回滚，这意味着副本暂存写操作的顺序跟最终提交的顺序不一定一致。然而暂存的写操作有哪些会回滚导致顺序不一致无法预测，因此为了方便起见，直接取暂存写操作的数量作为顺序偏差，因为这是顺序偏差的上限。这就是顺序偏差的计算规则的由来。举个例子，如果要计算两阶段分布式事务的顺序偏差，那么它的顺序偏差就是准备阶段写操作的数量。</li>
+<li><strong>新旧偏差限制了副本间同步写操作的延迟时间，即消息延迟。</strong>例如在天气预报的数据更新场景中，天气数据的更新不能超过 4 个小时的延迟，这段时间就是天气预报系统能够容忍的新旧偏差。</li>
+</ul>
+
+<p>上面的概念比较难理解，下面举一个简单的例子进行分析。</p>
+
+<h2 id="toc_1">一致性的衡量标准</h2>
+
+<h3 id="toc_2">一致性单元</h3>
+
+<p>在解释不一致性的偏差之前，需要定义一下什么是非一致性。首先，Yu 和 Vahdat 引入一致性单元的概念，<strong>一致性单元表示的是在一致性模型中度量的数据单元。</strong>例如单个股票的价格可以定义为一个一致性单元，也可以把多个股票的价格作为一个一致性单元，这取决于应用场景。</p>
+
+<p>对于每个一致性单元，持续一致性可以用三维向量定义为：<strong>一致性 = (数值偏差，顺序偏差，新旧偏差)</strong>。当所有偏差都为 0 时，就达到了线性一致性的要求。</p>
+
+<p>在给出一致性单元的定义之后，下面对一致性的偏差给出更具体的定义。</p>
+
+<ul>
+<li><strong>数值偏差表示对于一个副本（一致性单元） R，有多少其他副本的更新没有应用到 R 上，并且这些更新的影响是什么。</strong></li>
+<li><strong>顺序偏差表示对于一个副本（一致性单元） R，R 有多少暂存的更新操作</strong></li>
+<li><strong>新旧偏差表示对于一个副本（一致性单元） R，R 有多长时间没有更新数据</strong></li>
+</ul>
+
+<h3 id="toc_3">一致性衡量的例子</h3>
+
+<p><img src="media/15526128038237/15532224355834.jpg" alt=""/></p>
+
+<ul>
+<li>标为灰色的操作表示已提交的更新，白色的操作为未提交的更新</li>
+<li><5,B> 表示对数据 B 执行操作时的向量时钟的值为 5，可简单理解为数据版本</li>
+<li>数值偏差定义为 n(w)
+<ul>
+<li>n = 副本 R 未看到的其他副本的更新数量</li>
+<li>w = 偏差的权重 = 副本 R 一致性单元中所有变量当前值与全局值的数值差值</li>
+</ul></li>
+</ul>
+
+<p>在上面的示例中，可以看到两个副本上有包含 x，y 的一致性单元上。这两个变量的初始值都为 0。注意，由于副本 A 最后的操作是 <23, A>，所以它的向量时钟为 (24, 5)。（参考<a href="vertor-clock.html">向量时钟</a>）</p>
+
+<p>首先来分析顺序偏差，副本 A 从副本 B 接受了 x+=2 的操作，并且提交为永久更新，注意此时副本 B 的 x+=2 的操作并未提交。副本 A 有三个暂存的写操作：<10, A>、<14, A>、<23, A>，所以此时它的顺序偏差为 3。而副本 B 有两个暂存的写操作，所以它的顺序偏差为 2。</p>
+
+<p>接下来分析一下数值偏差，副本 A 还没有看到来自副本 B 的操作是 <16, B>，因此其数值偏差为 1，而权重的计算会稍微难理解一点，首先在这个例子中，由于一致性单元的变量是数值对象，所以这里权重可以定义为数值的差。在当前的图示状态中，假设所有值都会被提交为永久更新，一致性单元的最终值为：x=3，y=5，而此时副本 A 的值为：x=3，y=4，副本 A 的数值偏差权重为：(3+5)-(3+4)=1。同理，副本 B 还没有看到来自副本 A 的操作有：<10, A>、<14, A>、<23, A>，因此其数值偏差为 3，副本 B 的值为：x=2，y=1，其数值偏差权重为 (3+5)-(2+1)=5。综上，<strong>数值偏差的计算比较直观，就是副本的当前未看到其他副本的更新数量，而权重相对比较难理解，它反映的是当前副本一致性单元的快照跟全局快照的数值差值。</strong>值得注意的是，权重的计算跟数据的类型息息相关，主要取决于系统中对于数据更新权重的定义，像数值类型就可以用差值来衡量，像字符类型就没法用这种方式来计算，一种可行的方案就是认为权重都相等，此时权重就等于写操作的数量。</p>
+
+<p>最后分析一下新旧偏差，上面的例子中没有体现出新旧偏差，但是前面已经举了天气预报的例子。实际上新旧偏差是相对好理解的，在分布式系统中消息传递是有延迟的，而这个延迟的时间就是我们所说的新旧偏差。有那么一段时间对 X 的数据在副本间是不一致的，因为数据传输过程中有延迟，所以新旧偏差在除了线性一致性模型之外一致性模型都是存在的。</p>
+
+<p>通过上面的分析可以发现，限制顺序偏差可以通过控制单个副本的暂存更新数量完成，但是要限制数值偏差和新旧偏差则需要依赖所有副本的协调。</p>
+
+<h2 id="toc_4">总结</h2>
+
+<p>持续一致性模型给出了一种用于衡量不一致性以及表述系统中能够容忍哪些不一致性的标准，包括顺序偏差、数值偏差、新旧偏差。持续一致性就像是一把尺子，给出了度量分布式系统中不一致性的标准和方法。它的最大特点是从副本的视角出发给出了一致性衡量的方法，而不是笼统从整个系统去讨论一致性，具有更强的可操作性。</p>
+
+<h2 id="toc_5">参考资料</h2>
+
+<ul>
+<li>《分布式系统原理与范型》</li>
+<li><a href="https://www.usenix.org/publications/library/proceedings/osdi2000/full_papers/yuvahdat/yuvahdat.pdf">Design and evaluation of a continuous consistency model for replicated services</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[分布式系统：一致性协议]]></title>
+    <link href="https://blog.xiaohansong.com/consistency-protocol.html"/>
+    <updated>2019-03-14T10:32:06+08:00</updated>
+    <id>https://blog.xiaohansong.com/consistency-protocol.html</id>
+    <content type="html"><![CDATA[
+<p>一致性模型本质上是进程与数据存储的约定，通过一致性模型我们可以理解和推理在分布式系统中数据复制需要考虑的问题和基本假设。那么，一致性模型的具体实现有一些呢？本文会介绍一致性协议实现的主要思想和方法。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">什么是一致性协议</h2>
+
+<p><strong>一致性协议描述了特定一致性模型的实际实现。</strong>一致性模型就像是接口，而一致性协议就像是接口的具体实现。一致性模型提供了分布式系统中数据复制时保持一致性的约束，为了实现一致性模型的约束，需要通过一致性协议来保证。</p>
+
+<p>一致性协议根据是否允许数据分歧可以分为两种：</p>
+
+<ul>
+<li><strong>单主协议（不允许数据分歧）</strong>：整个分布式系统就像一个单体系统，所有写操作都由主节点处理并且同步给其他副本。例如主备同步、2PC、Paxos 都属于这类协议。</li>
+<li><strong>多主协议（允许数据分歧）</strong>：所有写操作可以由不同节点发起，并且同步给其他副本。例如 Gossip、POW。</li>
+</ul>
+
+<p>可以发现，<strong>它们的核心区别在于是否允许多个节点发起写操作，单主协议只允许由主节点发起写操作，因此它可以保证操作有序性，一致性更强。而多主协议允许多个节点发起写操作，因此它不能保证操作的有序性，只能做到弱一致性。</strong></p>
+
+<p>值得注意的是，一致性协议的分类方式有很多种，主要是看从哪个角度出发进行归类，常用的另一个归类方式是根据同步/异步复制来划分，这里就不多做讨论了。下面对单主协议和多主协议分别做一些共性的分析，篇幅所限，不会深入到协议细节。</p>
+
+<h2 id="toc_1">单主协议</h2>
+
+<p>单主协议的共同点在于都会用一个主节点来负责写操作，这样能够保证全局写的顺序一致性，它有另一个名字叫定序器，非常的形象。</p>
+
+<h3 id="toc_2">主备复制</h3>
+
+<p>主备复制可以说是最常用的数据复制方法，也是最基础的方法，很多其他协议都是基于它的变种。 <strong>主备复制要求所有的写操作都在主节点上进行，然后将操作的日志发送给其他副本。</strong>可以发现由于主备复制是有延迟的，所以它实现的是最终一致性。</p>
+
+<p>主备复制的实现方式：主节点处理完写操作之后立即返回结果给客户端，写操作的日志异步同步给其他副本。这样的好处是性能高，客户端不需要等待数据同步，缺点是如果主节点同步数据给副本之前数据缺失了，那么这些数据就永久丢失了。MySQL 的主备同步就是典型的异步复制。</p>
+
+<h3 id="toc_3">两阶段提交</h3>
+
+<p>两阶段提交（2PC）是关系型数据库常用的保持分布式事务一致性的协议，它也属于同步复制协议，即数据都同步完成之后才返回客户端结果。可以发现 2PC 保证所有节点数据一致之后才返回给客户端，实现了顺序一致性。</p>
+
+<p>2PC 把数据复制分为两步：</p>
+
+<ol>
+<li><strong>表决阶段</strong>：主节点将数据发送给所有副本，每个副本都要响应提交或者回滚，如果副本投票提交，那么它会将数据放到暂存区域，等待最终提交。</li>
+<li><strong>提交阶段</strong>：主节点收到其他副本的响应，如果副本都认为可以提交，那么就发送确认提交给所有副本让它们提交更新，数据就会从暂存区域移到永久区域。只要有一个副本返回回滚就整体回滚。</li>
+</ol>
+
+<p>可以发现 2PC 是典型的 CA 系统，为了保证一致性和可用性，2PC 一旦出现网络分区或者节点不可用就会被拒绝写操作，把系统变成只读的。由于 2PC 容易出现节点宕机导致一直阻塞的情况，所以在数据复制的场景中不常用，一般多用于分布式事务中（注：实际应用过程中会有很多优化）。</p>
+
+<h3 id="toc_4">分区容忍的一致性协议</h3>
+
+<p>分区容忍的一致性协议跟所有的单主协议一样，它也是只有一个主节点负责写入（提供顺序一致性），但它跟 2PC 的区别在于它只需要保证大多数节点（一般是超过半数）达成一致就可以返回客户端结果，这样可以提高了性能，同时也能容忍网络分区（少数节点分区不会导致整个系统无法运行）。分区容忍的一致性算法保证大多数节点数据一致后才返回客户端，同样实现了顺序一致性。</p>
+
+<p>下面用一个简单的示例来说明这类算法的核心思想。假设现在有一个分布式文件系统，它的文件都被复制到 3 个服务器上，我们规定：要更新一个文件，客户端必须先访问至少 2 个服务器（大多数），得到它们同意之后才能执行更新，同时每个文件都会有版本号标识；要读取文件的时候，客户端也必须要访问至少 2 个服务器获取该文件的版本号，如果所有的版本号一致，那么该版本必定是最新的版本，因为如果前面的更新操作要求必须要有大多数服务器的同意才能更新文件。</p>
+
+<p>以上就是我们熟知的 Paxos、ZAB、Raft 等分区容忍的一致性协议的核心思想：<strong>一致性的保证不一定非要所有节点都保持一致，只要大多数节点更新了，对于整个分布式系统来说数据也是一致性的。</strong>上面只是一个简单的阐述，真正的算法实现是比较复杂的，这里就不展开了。</p>
+
+<p>分区容忍的一致性协议如 Paxos 是典型的 CP 系统，为了保证一致性和分区容忍，在网络分区的情况下，允许大多数节点的写入，通过大多数节点的一致性实现整个系统的一致性，同时让少数节点停止服务（不能读写），放弃整体系统的可用性，也就是说客户端访问到少数节点时会失败。</p>
+
+<p>值得注意的是，根据 CAP 理论，假设现在有三个节点 A、B、C，当 C 被网络分区时，有查询请求过来，此时 C 因为不能和其他节点通信，所以 C 无法对查询做出响应，也就不具备可用性。但在工程实现上，这个问题是可以被绕过的，当客户端访问 C 无法得到响应时，它可以去访问 A、B，实际上对于整个系统来说还是部分可用性的，并不是说 CP 的系统一定就失去可用性。详细的分析参考<a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a></p>
+
+<h2 id="toc_5">多主协议</h2>
+
+<p>相比单主协议为了实现顺序一致性，不允许多个节点并发写，多主协议恰恰相反，只保证最终一致性，允许多个节点并发写，能够显著提升系统性能。由于多主协议一般提供的都是最终一致性，所以常用在对数据一致性要求不高的场景中。</p>
+
+<p>Gossip 协议就是一种典型的多主协议，很多分布式系统都使用它来做数据复制，例如比特币，作为一条去中心化的公链，所有节点的数据同步都用的是 Gossip 协议。此外，Gossip 协议也在一些分布式数据库中如 Dynamo 中被用来做分布式故障检测的状态同步，当有节点故障离开集群时，其他节点可以快速检测到。</p>
+
+<p>从名称上就可以看出 Gossip 协议的核心思想，Gossip 是流言八卦的意思，想想我们日常生活人与人之间传八卦的场景，在学校里面一个八卦一旦有一个人知道了，通过人传人，基本上整个学校的人最终都会知道了。因此 Gossip 协议的核心思想就是：<strong>每个节点都可以对其他节点发送消息，接收到消息的节点随机选择其他节点发送消息，接收到消息的节点也做同样的事情。</strong></p>
+
+<p><strong>多主协议允许运行多个节点并发写，就一定会出现对一个数据并发写导致数据冲突的情况，因此这类协议都需要解决并发写的问题。</strong>单主协议通过主节点控制写入，保证不会出现并发写的情况，因为所有写操作最终都会通过主节点排序，从某种意义上讲，使用单主协议的系统对于写入实际上是串行的，因此其性能是有瓶颈的。而多主协议允许多节点并发写，提搞了写入的性能，但是实际上它是把数据合并的操作延迟了，单主协议在写入的时候就进行了数据合并，因此读取数据的时候如果出现数据冲突的时候，就需要对数据进行合并，保证全局一致性。</p>
+
+<p>前面我们提到比特币使用的是 Gossip 协议做数据复制，那么问题来了，不是说多主协议性能会比较高吗，为什么比特币的性能那么差？这里实际上要分开来看，由于比特币是去中心化的，但是它的支付功能需要保证全局数据一致性，因此它用了一种很巧妙的一致性算法 POW：所有节点都做一道数学题，谁先算出答案谁有权利将交易写到链上，然后利用 Gossip 协议传播它的答案和交易，其他节点验证它的答案正确就将数据保存起来。</p>
+
+<p>到这里你可能会有一个疑问：POW 作为多主协议为什么性能这么低？任何协议都有它适用的场景。在比特币这个场景中，它对于数据一致性是有强需求的，理论上用单主协议是最优的选择。但是比特币作为去中心化的数字货币是不会使用单主协议的，否则又变成中心化的系统了。因此比特币只能选择多主协议，通过 POW 协议将比特币整条链操作进行了<strong>近似串行化</strong>，这样才能降低出现双花的概率（并发写的时候一个比特币被消费多次），鱼与熊掌不可兼得，既然要强一致性，那么只能牺牲性能来换取。</p>
+
+<p>由于多主协议允许了数据分歧，那么就需要有解决数据冲突的策略来保证最终一致性。如果要严格区分的话，比特币实际上应用了两个一致性协议：</p>
+
+<ul>
+<li><strong>POW</strong>：决定节点的记账权，起到类似单主协议中定序器的作用。注意 POW 也是多主协议，尽管概率很低，但是它有可能出现多个节点同时算出答案，一起出块（并发写）的情况，此时我们称比特币出现了分叉，即出现了数据冲突。</li>
+<li><strong>Gossip</strong>：用于将出块的交易同步到全球所有节点。由于 POW 会出现并发写的情况，当一个节点同时接受到多个节点写入请求时，就需要解决数据冲突的问题。<strong>比特币解决数据冲突的方式就是当出现分叉时，选取最长的那条链作为主链，其他分叉的链上的交易会被回滚，等待重新打包出块。</strong></li>
+</ul>
+
+<h2 id="toc_6">总结</h2>
+
+<p>本文主要<strong>从是否允许数据分歧的角度将分布式一致性协议分为两种：单主协议和多主协议。</strong>其中单主协议会用一个主节点来负责写操作，这样能够保证全局写的顺序一致性，但因此也牺牲了一部分性能。而多主协议则允许写操作可以由不同节点发起，并且同步给其他副本，只能保证最终一致性，但因此也提升了系统并发写入的性能。对数据一致性要求高的场景例如分布式数据库，主要会使用单主协议，对数据一致性要求不高例如故障检测，主要会使用多主协议来提高性能，当然也有特例，像比特币为了去中心化使用 POW 和 Gossip 结合进行数据复制。</p>
+
+<p>值得注意的是，文中提到的单主、多主协议只是我个人对分布式一致性协议的一种分类方式，帮助我们更好的理解。读者可以看一下参考资料，看一下不同作者对分布式协议是如何分类的，这样对分布式一致性协议会有更深入的理解。</p>
+
+<h2 id="toc_7">参考资料</h2>
+
+<ul>
+<li>《分布式系统原理与范型》</li>
+<li><a href="http://book.mixu.net/distsys/">Distributed systems for fun and profit</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[分布式系统：一致性模型]]></title>
+    <link href="https://blog.xiaohansong.com/consistency-model.html"/>
+    <updated>2019-03-10T16:03:48+08:00</updated>
+    <id>https://blog.xiaohansong.com/consistency-model.html</id>
+    <content type="html"><![CDATA[
+<p>分布式系统中一个重要的问题就是数据复制，数据复制一般是为了增强系统的可用性或提高性能。而实现数据复制的一个主要难题就是保持各个副本的一致性。本文首先讨论数据复制的场景中一致性模型如此重要的原因，然后讨论一致性模型的含义，最后分析常用的一致性模型。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">为什么需要一致性模型</h2>
+
+<p><strong>数据复制主要的目的有两个：可用性和性能。</strong>首先数据复制可以提高系统的可用性。在保持多副本的情况，有一个副本不可用，系统切换到其他副本就会恢复。常用的 MySQL 主备同步方案就是一个典型的例子。另一方面，数据复制能够提供系统的性能。当分布式系统需要在服务器数量和地理区域上进行扩展时，数据复制是一个相当重要的手段。有了多个数据副本，就能将请求分流；在多个区域提供服务时，也能通过就近原则提高客户端访问数据的效率。常用的 CDN 技术就是一个典型的例子。<br/>
+但是数据复制是要付出代价的。<strong>数据复制带来了多副本数据一致性的问题。</strong>一个副本的数据更新之后，其他副本必须要保持同步，否则数据不一致就可能导致业务出现问题。因此，每次更新数据对所有副本进行修改的时间以及方式决定了复制代价的大小。全局同步与性能实际上是矛盾的，而为了提高性能，往往会采用放宽一致性要求的方法。因此，<strong>我们需要用一致性模型来理解和推理在分布式系统中数据复制需要考虑的问题和基本假设。</strong></p>
+
+<h2 id="toc_1">什么是一致性模型</h2>
+
+<p>首先我们要定义一下一致性模型的术语：</p>
+
+<ol>
+<li><strong>数据存储</strong>：在分布式系统中指分布式共享数据库、分布式文件系统等。</li>
+<li><strong>读写操作</strong>：更改数据的操作称为写操作（包括新增、修改、删除），其他操作称为读操作。</li>
+</ol>
+
+<p>下面是一致性模型的定义：<br/>
+<strong>一致性模型本质上是进程与数据存储的约定：如果进程遵循某些规则，那么进程对数据的读写操作都是可预期的。</strong></p>
+
+<p>上面的定义可能比较抽象，我们用常见的强一致性模型来通俗的解释一下：<strong>在线性一致性模型中，进程对一个数据项的读操作，它期待数据存储返回的是该数据在最后一次写操作之后的结果。</strong>这在单机系统里面很容易实现，在 MySQL 中只要使用加锁读的方式就能保证读取到数据在最后一次写操作之后的结果。但在分布式系统中，因为没有全局时钟，导致要精确定义哪次写操作是最后一次写操作是非常困难的事情，因此产生了一系列的一致性模型。<strong>每种模型都有效限制了在对一个数据项执行读操作所应该返回的值。</strong>举个例子：假设记录值 X 在节点 M 和 N 上都有副本，当客户端 A 修改了副本 M 上 X 的值，一段时间之后，客户端 B 从 N 上读取 X 的值，此时一致性模型会决定客户端 B 是否能够读取到 A 写入的值。</p>
+
+<p>一致性模型主要可以分为两类：<strong>能够保证所有进程对数据的读写顺序都保持一致</strong>的一致性模型称为<strong>强一致性模型</strong>，而不能保证的一致性模型称为<strong>弱一致性模型</strong>。</p>
+
+<h2 id="toc_2">强一致性模型</h2>
+
+<h3 id="toc_3">线性一致性（Linearizable Consistency）</h3>
+
+<p>线性一致性也叫严格一致性（Strict Consistency）或者原子一致性（Atomic Consistency），它的条件是：</p>
+
+<ol>
+<li><strong>所有进程任何一次读都能读取到某个数据最近的一次写的数据。</strong></li>
+<li><strong>所有进程看到的操作顺序都跟全局时钟下的顺序一致。</strong></li>
+</ol>
+
+<p>线性一致性是对一致性要求最高的一致性模型，它要求每次写入的值都能够立即被所有进程读取到，就现有技术是不可能实现的。因为它要求所有操作都实时同步，实时同步的前提就是时钟同步。但是在分布式系统中要做到全局完全一致时钟现有技术是做不到的。首先通信是必然有延迟的，一旦有延迟，时钟的同步就没法做到一致。当然不排除以后新的技术能够做到，但目前而言线性一致性是无法实现的。</p>
+
+<h3 id="toc_4">顺序一致性（Sequential Consistency）</h3>
+
+<p>顺序一致性是 Lamport（1979）在解决多处理器系统共享存储器时首次提出来的。参考我之前写的文章《<a href="lamport-logic-clock.html">分布式系统：Lamport 逻辑时钟</a>》。它的条件是：</p>
+
+<ol>
+<li><strong>任何一次读写操作都是按照某种特定的顺序。</strong></li>
+<li><strong>所有进程看到的读写操作顺序都保持一致。</strong></li>
+</ol>
+
+<p>首先我们先来分析一下线性一致性和顺序一致性的相同点在哪里。他们都能够保证所有进程对数据的读写顺序保持一致。线性一致性的实现很简单，就按照全局时钟（可以简单理解为物理时钟）为参考系，所有进程都按照全局时钟的时间戳来区分事件的先后，那么必然所有进程看到的数据读写操作顺序一定是一样的，因为它们的参考系是一样的。而顺序一致性使用的是<a href="lamport-logic-clock.html">逻辑时钟</a>来作为分布式系统中的全局时钟，进而所有进程也有了一个统一的参考系对读写操作进行排序，因此所有进程看到的数据读写操作顺序也是一样的。</p>
+
+<p>那么线性一致性和顺序一致性的区别在哪里呢？通过上面的分析可以发现，<strong>顺序一致性虽然通过逻辑时钟保证所有进程保持一致的读写操作顺序，但这些读写操作的顺序跟实际上发生的顺序并不一定一致。</strong>而线性一致性是严格保证跟实际发生的顺序一致的。另外，线性一致性还对数据同步的实时性有严格要求，而<strong>顺序一致性并不要求实时同步。</strong></p>
+
+<h2 id="toc_5">弱一致性模型</h2>
+
+<h3 id="toc_6">因果一致性（Causal Consistency）</h3>
+
+<p>因果一致性是一种弱化的顺序一致性模型，因为它将具有潜在因果关系的事件和没有因果关系的事件区分开了。那么什么是因果关系？如果事件 B 是由事件 A 引起的或者受事件 A 的影响，那么这两个事件就具有因果关系。<br/>
+举个分布式数据库的示例，假设进程 P1 对数据项 x 进行了写操作，然后进程 P2 先读取了 x，然后对 y 进行了写操作，那么对 x 的读操作和对 y 的写操作就具有潜在的因果关系，因为 y 的计算可能依赖于 P2 读取到 x 的值（也就是 P1 写的值）。<br/>
+另一方面，如果两个进程同时对两个不同的数据项进行写操作，那么这两个事件就不具备因果关系。无因果关系的操作称为并发操作。这里只是简单陈述了一下，深入的分析见我之前写的文章《<a href="vertor-clock.html">分布式系统：向量时钟</a>》。<br/>
+因果一致性的条件包括：</p>
+
+<ol>
+<li><strong>所有进程必须以相同的顺序看到具有因果关系的读写操作。</strong></li>
+<li><strong>不同进程可以以不同的顺序看到并发的读写操作。</strong></li>
+</ol>
+
+<p>下面我们来分析一下为什么说因果一致性是一种弱化的顺序一致性模型。顺序一致性虽然不保证事件发生的顺序跟实际发生的保持一致，但是它能够保证所有进程看到的读写操作顺序是一样的。而<strong>因果一致性更进一步弱化了顺序一致性中对读写操作顺序的约束，仅保证有因果关系的读写操作有序，没有因果关系的读写操作（并发事件）则不做保证。</strong>也就是说如果是无因果关系的数据操作不同进程看到的值是有可能是不一样，而有因果关系的数据操作不同进程看到的值保证是一样的。</p>
+
+<h3 id="toc_7">最终一致性（Eventual Consistency）</h3>
+
+<p>最终一致性是更加弱化的一致性模型，因果一致性起码还保证了有因果关系的数据不同进程读取到的值保证是一样的，而<strong>最终一致性只保证所有副本的数据最终在某个时刻会保持一致。</strong><br/>
+从某种意义上讲，最终一致性保证的数据在某个时刻会最终保持一致就像是在说：“人总有一天会死”一样。实际上我们更加关心的是：</p>
+
+<ol>
+<li><strong>“最终”到底是多久？通常来说，实际运行的系统需要能够保证提供一个有下限的时间范围。</strong></li>
+<li><strong>多副本之间对数据更新采用什么样的策略？一段时间内可能数据可能多次更新，到底以哪个数据为准？一个常用的数据更新策略就是以时间戳最新的数据为准。</strong></li>
+</ol>
+
+<p>由于最终一致性对数据一致性的要求比较低，在对性能要求高的场景中是经常使用的一致性模型。</p>
+
+<h3 id="toc_8">以客户端为中心的一致性（Client-centric Consistency）</h3>
+
+<p>前面我们讨论的一致性模型都是针对数据存储的多副本之间如何做到一致性，考虑这么一种场景：在最终一致性的模型中，如果客户端在数据不同步的时间窗口内访问不同的副本的同一个数据，会出现读取同一个数据却得到不同的值的情况。为了解决这个问题，有人提出了以客户端为中心的一致性模型。<strong>以客户端为中心的一致性为单一客户端提供一致性保证，保证该客户端对数据存储的访问的一致性，但是它不为不同客户端的并发访问提供任何一致性保证。</strong><br/>
+举个例子：客户端 A 在副本 M 上读取 x 的最新值为 1，假设副本 M 挂了，客户端 A 连接到副本 N 上，此时副本 N 上面的 x 值为旧版本的 0，那么一致性模型会保证客户端 A 读取到的 x 的值为 1，而不是旧版本的 0。一种可行的方案就是给数据 x 加版本标记，同时客户端 A 会缓存 x 的值，通过比较版本来识别数据的新旧，保证客户端不会读取到旧的值。</p>
+
+<p>以客户端为中心的一致性包含了四种子模型：</p>
+
+<ol>
+<li><strong>单调读一致性（Monotonic-read Consistency）</strong>：如果一个进程读取数据项 x 的值，那么该进程对于 x 后续的所有读操作要么读取到第一次读取的值要么读取到更新的值。即保证客户端不会读取到旧值。</li>
+<li><strong>单调写一致性（Monotonic-write Consistency）</strong>：一个进程对数据项 x 的写操作必须在该进程对 x 执行任何后续写操作之前完成。即保证客户端的写操作是串行的。</li>
+<li><strong>读写一致性（Read-your-writes Consistency）</strong>：一个进程对数据项 x 执行一次写操作的结果总是会被该进程对 x 执行的后续读操作看见。即保证客户端能读到自己最新写入的值。</li>
+<li><strong>写读一致性（Writes-follow-reads Consistency）</strong>：同一个进程对数据项 x 执行的读操作之后的写操作，保证发生在与 x 读取值相同或比之更新的值上。即保证客户端对一个数据项的写操作是基于该客户端最新读取的值。</li>
+</ol>
+
+<h2 id="toc_9">总结</h2>
+
+<p>数据复制导致了一致性的问题，为了保持副本的一致性可能会严重地影响性能，唯一的解决办法就是放松一致性的要求。通过一致性模型我们可以理解和推理在分布式系统中数据复制需要考虑的问题和基本假设，便于结合具体的业务场景做权衡。每种模型都有效地限制了对一个数据项执行度操作应返回的值。通常来说限制越少的模型越容易应用，但一致性的保证就越弱。</p>
+
+<h2 id="toc_10">参考资料</h2>
+
+<p>《分布式系统原理与范型》<br/>
+<a href="http://book.mixu.net/distsys/">Distributed systems for fun and profit</a><br/>
+<a href="https://en.wikipedia.org/wiki/Consistency_model">Consistency_model</a></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[IDEA 插件开发入门教程]]></title>
+    <link href="https://blog.xiaohansong.com/idea-plugin-development.html"/>
+    <updated>2019-02-23T16:09:53+08:00</updated>
+    <id>https://blog.xiaohansong.com/idea-plugin-development.html</id>
+    <content type="html"><![CDATA[
+<p>IntelliJ IDEA 是目前最好用的 JAVA 开发 IDE，它本身的功能已经非常强大了，但是每个人的需求不一样，有些需求 IDEA 本身无法满足，于是我们就需要自己开发插件来解决。工欲善其事，必先利其器，想要提高开发效率，我们可以借助 IDEA 提供的插件功能来满足我们的需求。如果没有我需要的功能怎么办？很简单，我们自己造一个！</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">插件能做什么？</h2>
+
+<p>IDEA 的插件几乎可以做任何事情，因为它把 IDE 本身的能力都封装好开放出来了。主要的插件功能包含以下四种：</p>
+
+<ul>
+<li>自定义语言支持：如果有 IDEA 暂时不支持的语言，你可以自己写一个插件来支持，例如 Go 语言原来的支持就是通过插件做的，后来单独做了一个 Goland。官方有<a href="https://www.jetbrains.org/intellij/sdk/docs/tutorials/custom_language_support_tutorial.html">自定义语言插件支持的教程</a>。</li>
+<li>框架支持：例如<a href="https://plugins.jetbrains.com/plugin/1698">Struts 2</a> 的框架支持</li>
+<li>工具集成：可以给 IDEA 的自带功能进行增强，例如对 Git 的操作增加 CodeReview 的功能。参考<a href="https://plugins.jetbrains.com/plugin/7272-gerrit">Gerrit</a></li>
+<li>用户界面：自定义的插件改变用户界面。参考<a href="https://plugins.jetbrains.com/plugin/72-backgroundimage">BackgroundImage</a></li>
+</ul>
+
+<p>我为了减少重复代码的编写，写了一个代码生成的插件<a href="codemaker.html">IDEA代码生成插件CodeMaker</a>，支持自定义代码生成的模板。</p>
+
+<h2 id="toc_1">Hello world 插件</h2>
+
+<p>依照惯例，我们从 Hello world 开始。</p>
+
+<h3 id="toc_2">新建一个 Gradle 的插件工程</h3>
+
+<p>有些教程推荐用 IDEA 默认的插件工程来开始，但是我比较推荐用 Gradle 来管理整个插件工程，后面的依赖管理会很方便，否则都得靠手动管理。</p>
+
+<p>点击新建工程，选择 Gradle<br/>
+<img src="media/15509093931549/15509139851505.jpg" alt=""/></p>
+
+<p>接下来填写项目属性<br/>
+<img src="media/15509093931549/15509141003827.jpg" alt=""/></p>
+
+<p>配置 Gradle，用默认配置就行<br/>
+<img src="media/15509093931549/15509141354238.jpg" alt=""/></p>
+
+<p>新建完工程之后，IDEA 会自动开始解析项目依赖，因为它要下载一个几百兆的 SDK 依赖包，所以会比较久，打开科学上网能快一点。<br/>
+<img src="media/15509093931549/15509143317086.jpg" alt=""/></p>
+
+<p>Gradle 依赖解析完成之后，项目结构如下图，其中 plugin.xml 是插件的配置，build.gradle 是项目依赖的配置（类比 pom.xml）。<br/>
+<img src="media/15509093931549/15509144197202.jpg" alt=""/></p>
+
+<p>下面就是默认生成的 plugin.xml</p>
+
+<pre><code class="language-text">&lt;idea-plugin&gt;
+    &lt;!--插件id--&gt;
+    &lt;id&gt;com.xiaokai.test.demo&lt;/id&gt;
+    &lt;!--插件名称--&gt;
+    &lt;name&gt;Demo&lt;/name&gt;
+    &lt;!--开发者信息--&gt;
+    &lt;vendor email=&quot;support@yourcompany.com&quot; url=&quot;http://www.yourcompany.com&quot;&gt;YourCompany&lt;/vendor&gt;
+    &lt;!--插件说明--&gt;
+    &lt;description&gt;&lt;![CDATA[
+    Enter short description for your plugin here.&lt;br&gt;
+    &lt;em&gt;most HTML tags may be used&lt;/em&gt;
+    ]]&gt;&lt;/description&gt;
+
+    &lt;!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+         on how to target different products --&gt;
+    &lt;!-- uncomment to enable plugin in all products
+    &lt;depends&gt;com.intellij.modules.lang&lt;/depends&gt;
+    --&gt;
+
+    &lt;!--依赖的其他插件能力--&gt;
+    &lt;extensions defaultExtensionNs=&quot;com.intellij&quot;&gt;
+        &lt;!-- Add your extensions here --&gt;
+    &lt;/extensions&gt;
+
+    &lt;!--插件动作--&gt;
+    &lt;actions&gt;
+        &lt;!-- Add your actions here --&gt;
+    &lt;/actions&gt;
+&lt;/idea-plugin&gt;
+</code></pre>
+
+<h3 id="toc_3">创建一个 Action</h3>
+
+<p>Action 是 IDEA 中对事件响应的处理器，它的 actionPerformed 就像是 JS 中的 onClick 方法。可以看出来，插件的开发本质上跟 web、Android 的开发没有什么不同，因为都是事件驱动的编程。</p>
+
+<p>我们可以直接使用 IDEA 提供的 Action 生成器<br/>
+<img src="media/15509093931549/15509272702450.jpg" alt="" style="width:873px;"/></p>
+
+<p><img src="media/15509093931549/15509277759873.jpg" alt="" style="width:915px;"/></p>
+
+<p>点击 OK 之后会在 src 生成类文件：</p>
+
+<pre><code class="language-text">package com.xiaokai.test;
+
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+
+public class HelloWorldAction extends AnAction {
+
+    @Override
+    public void actionPerformed(AnActionEvent e) {
+        // TODO: insert action logic here
+    }
+}
+
+</code></pre>
+
+<p>同时，动作的信息也会注册到 plugin.xml 中</p>
+
+<pre><code class="language-text">    &lt;!--插件动作--&gt;
+    &lt;actions&gt;
+        &lt;!-- Add your actions here --&gt;
+        &lt;action id=&quot;demo.hello.world&quot; class=&quot;com.xiaokai.test.HelloWorldAction&quot; text=&quot;HelloWorld&quot;
+                description=&quot;Say Hello World&quot;&gt;
+            &lt;add-to-group group-id=&quot;GenerateGroup&quot; anchor=&quot;last&quot;/&gt;
+        &lt;/action&gt;
+    &lt;/actions&gt;
+</code></pre>
+
+<h3 id="toc_4">弹出对话框</h3>
+
+<p>创建完 Action 之后我们就要开始往里面写逻辑了，既然是 Hello World 教学，那我们就来试一下最简单的弹出对话框。</p>
+
+<pre><code class="language-text">    @Override
+    public void actionPerformed(AnActionEvent e) {
+        //获取当前在操作的工程上下文
+        Project project = e.getData(PlatformDataKeys.PROJECT);
+
+        //获取当前操作的类文件
+        PsiFile psiFile = e.getData(CommonDataKeys.PSI_FILE);
+        //获取当前类文件的路径
+        String classPath = psiFile.getVirtualFile().getPath();
+        String title = &quot;Hello World!&quot;;
+
+        //显示对话框
+        Messages.showMessageDialog(project, classPath, title, Messages.getInformationIcon());
+    }
+</code></pre>
+
+<p>代码写完之后，打开 Gradle 的界面，点击 runIde 就会启动一个安装了插件的 IDEA，然后就可以进行测试。你还可以右键启动 Debug 模式，这样还能进行断点。<br/>
+<img src="media/15509093931549/15509297684395.jpg" alt="" style="width:1066px;"/></p>
+
+<p>运行的效果如下图：<br/>
+<img src="media/15509093931549/pu.gif" alt="pu"/><br/>
+可以看到，我们右键打开 Generate 菜单之后，里面最后一项就是我们添加的 Action，</p>
+
+<h2 id="toc_5">进阶的教程</h2>
+
+<p>如果想学习更多的原理和设计理念可以看<a href="https://www.jetbrains.org/intellij/sdk/docs/welcome.html">IntelliJ Platform SDK</a>的官方文档。不过老实说，它的文档写的挺差的，基本上就是简单讲了一下概念和原理，没有深入的分析。所以如果要深入研究还得靠自己。最靠谱的学习方式就是看别人写的插件，举个例子，你想知道怎么样实现自动生成代码，你就去找支持这个功能的插件，看他的源码是怎么写的。</p>
+
+<p>我当时写<a href="https://github.com/x-hansong/CodeMaker">CodeMaker</a>的时候也是靠自己啃源码之后写出来的。下面我简单介绍一下我用过的一些 API，这些 API 基本都没有文档说明，全靠代码相传。</p>
+
+<h3 id="toc_6">判断当前光标选择的元素是什么</h3>
+
+<pre><code class="language-text">        //获取当前事件触发时，光标所在的元素
+        PsiElement psiElement = anActionEvent.getData(LangDataKeys.PSI_ELEMENT);
+        //如果光标选择的不是类，弹出对话框提醒
+        if (psiElement == null || !(psiElement instanceof PsiClass)) {
+            Messages.showMessageDialog(project, &quot;Please focus on a class&quot;, &quot;Generate Failed&quot;, null);
+            return;
+        }
+</code></pre>
+
+<h3 id="toc_7">获取当前类文件的所有类对象</h3>
+
+<p>一个类文件中可能会有内部类，所以读取的时候返回的是一个列表</p>
+
+<pre><code class="language-text">    public static List&lt;PsiClass&gt; getClasses(PsiElement element) {
+        List&lt;PsiClass&gt; elements = Lists.newArrayList();
+        List&lt;PsiClass&gt; classElements = PsiTreeUtil.getChildrenOfTypeAsList(element, PsiClass.class);
+        elements.addAll(classElements);
+        for (PsiClass classElement : classElements) {
+            //这里用了递归的方式获取内部类
+            elements.addAll(getClasses(classElement));
+        }
+        return elements;
+    }
+</code></pre>
+
+<h3 id="toc_8">格式化代码</h3>
+
+<pre><code class="language-text">    public static void reformatJavaFile(PsiElement theElement) {
+        CodeStyleManager codeStyleManager = CodeStyleManager.getInstance(theElement.getProject());
+        try {
+            codeStyleManager.reformat(theElement);
+        } catch (Exception e) {
+            LOGGER.error(&quot;reformat code failed&quot;, e);
+        }
+    }
+</code></pre>
+
+<h3 id="toc_9">使用粘贴板</h3>
+
+<pre><code class="language-text">        CopyPasteManager.getInstance()
+            .setContents(new SimpleTransferable(table.toString(), DataFlavor.allHtmlFlavor));
+</code></pre>
+
+<h3 id="toc_10">更多</h3>
+
+<p>更多的技巧可以参考我的项目<a href="https://github.com/x-hansong/CodeMaker">CodeMaker</a>，以及其他的开源插件。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[分布式系统：向量时钟]]></title>
+    <link href="https://blog.xiaohansong.com/vertor-clock.html"/>
+    <updated>2019-02-09T17:26:08+08:00</updated>
+    <id>https://blog.xiaohansong.com/vertor-clock.html</id>
+    <content type="html"><![CDATA[
+<p>在上一篇文章<a href="lamport-logic-clock.html">分布式系统：Lamport 逻辑时钟</a>中我们知道Lamport 逻辑时钟帮助我们得到了分布式系统中的事件全序关系，但是对于同时发生的关系却不能很好的描述，导致无法描述事件的因果关系。向量时钟是在 Lamport 时间戳基础上演进的另一种逻辑时钟方法，它通过向量结构不但记录本节点的 Lamport 时间戳，同时也记录了其他节点的 Lamport 时间戳，因此能够很好描述同时发生关系以及事件的因果关系。</p>
+
+<span id="more"></span><!-- more -->
+
+<p><strong>注意：</strong></p>
+
+<ul>
+<li>本文中的因果关系指的是时序关系，即时间的前后，并不是逻辑上的原因和结果</li>
+<li>本文中提及的时间戳如无特别说明，都指的是逻辑时钟的时间戳，不是物理时钟的时间戳</li>
+</ul>
+
+<h2 id="toc_0">为什么需要向量时钟</h2>
+
+<p>首先我们来回顾一下 Lamport 逻辑时钟算法，它提供了一种判断分布式系统中事件全序关系的方法：如果 a -&gt; b，那么 C(a) &lt; C(b)，但是 C(a) &lt; C(b) 并不能说明 a -&gt; b。也就是说<strong>C(a) &lt; C(b) 是 a -&gt; b 的必要不充分条件，我们不能通过 Lamport 时间戳对事件 a、b 的因果关系进行判断。</strong> 下面我们举一个例子来说明。<br/>
+<img src="media/15497043682993/15497196777863.jpg" alt="图1"/><br/>
+假设有三个进程在发消息，Ts(mi)表示消息mi的发送时间戳，Tr(mi)表示消息mi的接受时间戳，显然 Ts(mi) &lt; Tr(mi)，但是这个能说明什么呢？</p>
+
+<p>我们可以发现在进程 P2 中，Tr(m1) &lt; Ts(m3)，说明 m3 是在 m1 被接收之后发送的，也就是说 m3 的发送跟 m1 的接收有关系。难道通过 Lamport 时间戳就能区分事件的因果的关系了吗？答案是 No，我们仔细看可以发现，虽然 Tr(m1) &lt; Ts(m2)，但实际上 m2 的发送跟 m1 并没有关系。</p>
+
+<p>综上所述，我们可以发现 Lamport 逻辑时钟算法中每个进程只拥有自己的本地时间，没有其他进程的时间，导致无法描述事件的因果关系。如果每个进程都能够知道其他所有进程的时间，是否就能够得到事件的因果关系了呢？为此，有人提出了向量时钟算法，在 Lamport 逻辑时钟的基础上进行了改良，提出了一种在分布式系统中描述事件因果关系的算法。</p>
+
+<p>可能有人会有疑问：向量时钟到底有什么用呢？举一个常见的工程应用：数据冲突检测。分布式系统中数据一般存在多个副本，多个副本可能被同时更新，这会引起副本间数据不一致，此时冲突检测就非常重要。<strong>基于向量时钟我们可以获得任意两个事件的顺序关系，结果要么是有因果关系（先后顺序），要么是没有因果关系（同时发生）。</strong>通过向量时钟，我们能够识别到如果两个数据更新操作是同时发生的关系，那么说明出现了数据冲突。后面我们会详细说明相关的实现。</p>
+
+<h2 id="toc_1">什么是向量时钟</h2>
+
+<p>通过上面的分析我们知道向量时钟算法是<strong>在 Lamport 逻辑时钟的基础上进行了改良，用于在分布式系统中描述事件因果关系的算法。</strong>那么为什么叫向量时钟呢？前面我们知道如果每个进程都能够知道其他所有进程的时间，就能够通过计算得到事件的因果关系。向量时钟算法利用了向量这种数据结构将全局各个进程的逻辑时间戳广播给各个进程：每个进程发送事件时都会将当前进程已知的所有进程时间写入到一个向量中，附带在消息中。这就是向量时钟命名的由来。</p>
+
+<h2 id="toc_2">如何实现向量时钟</h2>
+
+<p>假设分布式系统中有 N 个进程，每个进程都有一个本地的向量时间戳 Ti，向量时钟算法实现如下：</p>
+
+<ol>
+<li>对于进程 i 来说，Ti[i] 是进程 i 本地的逻辑时间</li>
+<li>当进程 i 当有新的事件发生时，Ti[i] = Ti[i] + 1</li>
+<li>当进程 i 发送消息时将它的向量时间戳(MT=Ti)附带在消息中。</li>
+<li>接受消息的进程 j 更新本地的向量时间戳：Tj[k] = max(Tj[k], MT[k]) for k = 1 to N。（MT即消息中附带的向量时间戳）</li>
+</ol>
+
+<p>下图是向量时钟的示例：<br/>
+<img src="media/15497043682993/15503020949302.jpg" alt=""/></p>
+
+<p>那么如何利用向量时钟判断事件的因果关系呢？我们知道分布式系统中的事件要么是有因果关系（先后顺序），要么是没有因果关系（同时发生），下面我们来看一下如何利用向量时钟判断时间的因果关系。</p>
+
+<p><strong>假设有事件 a、b 分别在节点 P、Q 上发生，向量时钟分别为 Ta、Tb，如果 Tb[Q] &gt; Ta[Q] 并且 Tb[P] &gt;= Ta[P]，则a发生于b之前，记作 a -&gt; b，此时说明事件 a、b 有因果关系；<br/>
+反之，如果 Tb[Q] &gt; Ta[Q] 并且 Tb[P] &lt; Ta[P]，则认为a、b同时发生，记作 a &lt;-&gt; b。例如上图中节点 B 上的第 4 个事件 (A:2，B:4，C:1) 与节点 C 上的第 2 个事件 (B:3，C:2) 没有因果关系，属于同时发生事件。</strong></p>
+
+<h2 id="toc_3">向量时钟的实际应用</h2>
+
+<p>前面我们提到向量时钟可以用来<strong>检测</strong>分布式系统中多副本更新的数据冲突问题，注意是检测（发现问题），它并不能解决问题。数据冲突的解决是另一个课题，这里不展开了。</p>
+
+<p>亚马逊的 Dynamo 是一个分布式Key/Value存储系统，为了高可用，即使在出现网络分区或者机器宕机时依然可读可写。当网络分区恢复之后，多个副本同步数据一定会出现数据不一致的情况，那么如何检测数据冲突呢？参考向量时钟（Vector clock）的思想，Dynamo 中使用了版本向量（Version vector）来检测数据冲突，下面我们来看看算法的实现。</p>
+
+<p><img src="media/15497043682993/15503054707718.jpg" alt=""/></p>
+
+<ol>
+<li>client 端写入数据，该请求被 Sx 处理并创建相应的 vector ([Sx, 1])，记为数据 D1</li>
+<li>第 2 次请求也被 Sx 处理，数据修改为 D2，vector 修改为([Sx, 2])</li>
+<li>第 3、4 次请求分别被 Sy、Sz 处理，client 端先读取到 D2，然后 D3、D4 被写入 Sy、Sz</li>
+<li>第 5 次更新时 client 端读取到 D2、D3 和 D4 3个数据版本，通过类似向量时钟判断同时发生关系的方法可判断 D3、D4 是同时发生的事件，因此存在数据冲突，最终通过一定方法解决数据冲突并写入 D5</li>
+</ol>
+
+<p>注意，向量时钟和版本向量并不是同一个东西，版本向量借鉴了向量时钟中利用向量来判断事件的因果关系的思想，用于检测数据冲突。向量时钟还有其他的应用，例如强制因果通信（Enforcing Causal Communication），这里不展开了，有兴趣的读者自行谷歌。</p>
+
+<h2 id="toc_4">总结</h2>
+
+<p>向量时钟算法利用了向量这种数据结构将全局各个进程的逻辑时间戳广播给各个进程，通过向量时间戳就能够比较任意两个事件的因果关系（先后关系或者同时发生关系）。向量时钟被用于解决数据冲突检测、强制因果通信等需要判断事件因果关系的问题。</p>
+
+<h2 id="toc_5">参考资料</h2>
+
+<ul>
+<li><a href="https://zhuanlan.zhihu.com/p/23278509">分布式系统理论基础 - 时间、时钟和事件顺序</a></li>
+<li><a href="https://medium.com/@balrajasubbiah/lamport-clocks-and-vector-clocks-b713db1890d7">Lamport Clocks And Vector Clocks</a></li>
+<li><a href="%E3%80%81http://edisonxu.com/2018/11/02/clocks.html">Vector Clock/Version Clock</a></li>
+<li><a href="http://s3.amazonaws.com/AllThingsDistributed/sosp/amazon-dynamo-sosp2007.pdf">Dynamo: Amazon’s Highly Available Key-value Store </a></li>
+<li><a href="http://basho.com/posts/technical/why-vector-clocks-are-hard/">Why Vector Clocks Are Hard</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[分布式系统：Lamport 逻辑时钟]]></title>
+    <link href="https://blog.xiaohansong.com/lamport-logic-clock.html"/>
+    <updated>2019-01-31T11:15:40+08:00</updated>
+    <id>https://blog.xiaohansong.com/lamport-logic-clock.html</id>
+    <content type="html"><![CDATA[
+<p>分布式系统解决了传统单体架构的单点问题和性能容量问题，另一方面也带来了很多的问题，其中一个问题就是多节点的时间同步问题：不同机器上的物理时钟难以同步，导致无法区分在分布式系统中多个节点的事件时序。1978年Lamport在《<a href="http://research.microsoft.com/users/lamport/pubs/time-clocks.pdf">Time, Clocks and the Ordering of Events in a Distributed System</a>》中提出了逻辑时钟的概念，来解决分布式系统中区分事件发生的时序问题。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">什么是逻辑时钟</h2>
+
+<p>逻辑时钟是为了区分现实中的物理时钟提出来的概念，一般情况下我们提到的时间都是指物理时间，但实际上很多应用中，只要所有机器有相同的时间就够了，这个时间不一定要跟实际时间相同。更进一步，如果两个节点之间不进行交互，那么它们的时间甚至都不需要同步。<strong>因此问题的关键点在于节点间的交互要在事件的发生顺序上达成一致，而不是对于时间达成一致。</strong></p>
+
+<p>综上，<strong>逻辑时钟指的是分布式系统中用于区分事件的发生顺序的时间机制。</strong>从某种意义上讲，现实世界中的物理时间其实是逻辑时钟的特例。</p>
+
+<h2 id="toc_1">为什么需要逻辑时钟</h2>
+
+<p>时间是在现实生活中是很重要的概念，有了时间我们就能比较事情发生的先后顺序。如果是单个计算机内执行的事务，由于它们共享一个计时器，所以能够很容易通过时间戳来区分先后。同理在分布式系统中也通过时间戳的方式来区分先后行不行？</p>
+
+<p>答案是NO，因为在分布式系统中的不同节点间保持它们的时钟一致是一件不容易的事情。因为每个节点的CPU都有自己的计时器，而不同计时器之间会产生时间偏移，最终导致不同节点上面的时间不一致。也就是说如果A节点的时钟走的比B节点的要快1分钟，那么即使B先发出的消息（附带B的时间戳），A的消息（附带A的时间戳）在后一秒发出，A的消息也会被认为先于B发生。</p>
+
+<p>那么是否可以通过某种方式来同步不同节点的物理时钟呢？答案是有的，NTP就是常用的时间同步算法，但是即使通过算法进行同步，总会有误差，这种误差在某些场景下（金融分布式事务）是不能接受的。</p>
+
+<p>因此，<strong>Lamport提出逻辑时钟就是为了解决分布式系统中的时序问题，即如何定义a在b之前发生。</strong>值得注意的是，并不是说分布式系统只能用逻辑时钟来解决这个问题，如果以后有某种技术能够让不同节点的时钟完全保持一致，那么使用物理时钟来区分先后是一个更简单有效的方式。</p>
+
+<h2 id="toc_2">如何实现逻辑时钟</h2>
+
+<h3 id="toc_3">时序关系与相对论</h3>
+
+<p>通过前面的讨论我们知道通过物理时钟（即绝对参考系）来区分先后顺序的前提是所有节点的时钟完全同步，但目前并不现实。因此，在没有绝对参考系的情况下，在一个分布式系统中，你无法判断事件A是否发生在事件B之前，除非A和B存在某种依赖关系，即分布式系统中的事件仅仅是部分有序的。</p>
+
+<p>上面的结论跟狭义相对论有异曲同工之妙，在狭义相对论中，不同观察者在同一参考系中观察到的事件先后顺序是一致的，但是在不同的观察者在不同的参考系中对两个事件谁先发生可能具有不同的看法。当且仅当事件A是由事件B引起的时候，事件A和B之间才存在一个先后关系。<strong>两个事件可以建立因果关系的前提是：两个事件之间可以用等于或小于光速的速度传递信息。</strong> <u>值得注意的是这里的因果关系指的是时序关系，即时间的前后，并不是逻辑上的原因和结果。</u></p>
+
+<p>那么是否我们可以参考狭义相对论来定义分布式系统中两个事件的时序呢？在分布式系统中，网络是不可靠的，所以我们去掉<strong>可以</strong>和<strong>速度</strong>的约束，可以得到<strong>两个事件可以建立因果（时序）关系的前提是：两个事件之间是否发生过信息传递。</strong>在分布式系统中，进程间通信的手段（共享内存、消息发送等）都属于信息传递，如果两个进程间没有任何交互，实际上他们之间内部事件的时序也无关紧要。但是有交互的情况下，特别是多个节点的要保持同一副本的情况下，事件的时序非常重要。</p>
+
+<h3 id="toc_4">Lamport 逻辑时钟</h3>
+
+<p>分布式系统中按是否存在节点交互可分为三类事件，一类发生于节点内部，二是发送事件，三是接收事件。注意：<strong>以下文章中提及的时间戳如无特别说明，都指的是Lamport 逻辑时钟的时间戳，不是物理时钟的时间戳</strong></p>
+
+<blockquote>
+<p>逻辑时钟定义</p>
+
+<p>Clock Condition.对于任意事件\(a\), \(b\)：如果\(a \to b\)（\(\to\)表示a先于b发生），那么\(C(a)&lt; C(b)\), 反之不然, 因为有可能是并发事件<br/>
+C1.如果\(a\)和\(b\)都是进程\(P_i\)里的事件，并且\(a\)在\(b\)之前，那么\(C_i(a) &lt; C_i(b)\)<br/>
+C2.如果\(a\)是进程\(P_i\)里关于某消息的发送事件，\(b\)是另一进程\(P_j\)里关于该消息的接收事件，那么\(C_i(a) &lt; C_j(b)\)</p>
+</blockquote>
+
+<p>Lamport 逻辑时钟原理如下：<br/>
+<img src="media/15489045404752/15489326333600.jpg" alt="图1"/></p>
+
+<ol>
+<li>每个事件对应一个Lamport时间戳，初始值为0</li>
+<li>如果事件在节点内发生，本地进程中的时间戳加1</li>
+<li>如果事件属于发送事件，本地进程中的时间戳加1并在消息中带上该时间戳</li>
+<li>如果事件属于接收事件，本地进程中的时间戳 = Max(本地时间戳，消息中的时间戳) + 1</li>
+</ol>
+
+<p>假设有事件\(a、b，C(a)、C(b)\)分别表示事件\(a、b\)对应的Lamport时间戳，如果\(a\)发生在\(b\)之前(happened before)，记作 \(a \to b\)，则有\(C(a) &lt; C(b)\)，例如图1中有 \(C1 \to B1\)，那么 \(C(C1) &lt; C(B1)\)。通过该定义，事件集中Lamport时间戳不等的事件可进行比较，我们获得事件的偏序关系(partial order)。<strong>注意：如果\(C(a) &lt; C(b)\)，并不能说明\(a \to b\)，也就是说\(C(a) &lt; C(b)\)是\(a \to b\)的必要不充分条件</strong></p>
+
+<p>如果\(C(a) = C(b)\)，那\(a、b\)事件的顺序又是怎样的？值得注意的是当\(C(a) = C(b)\)的时候，它们肯定不是因果关系，所以它们之间的先后其实并不会影响结果，我们这里只需要给出一种确定的方式来定义它们之间的先后就能得到全序关系。<strong>注意：Lamport逻辑时钟只保证因果关系（偏序）的正确性，不保证绝对时序的正确性。</strong></p>
+
+<p>一种可行的方式是利用给进程编号，利用进程编号的大小来排序。假设\(a、b\)分别在节点\(P、Q\)上发生，\(P_i、Q_j\)分别表示我们给\(P、Q\)的编号，如果 \(C(a) = C(b)\) 并且 \(P_i &lt; Q_j\)，同样定义为\(a\)发生在\(b\)之前，记作 \(a \Rightarrow b\)（全序关系）。假如我们对图1的\(A、B、C\)分别编号\(A_i = 1、B_j = 2、C_k = 3\)，因 \(C(B4) = C(C3)\) 并且 \(B_j &lt; C_k\)，则 \(B4 \Rightarrow C3\)。</p>
+
+<p>通过以上定义，我们可以对所有事件排序，获得事件的全序关系(total order)。上图例子，我们可以进行排序：\(C1 \Rightarrow B1 \Rightarrow B2 \Rightarrow A1 \Rightarrow B3 \Rightarrow A2 \Rightarrow C2 \Rightarrow B4 \Rightarrow C3 \Rightarrow A3 \Rightarrow B5 \Rightarrow C4 \Rightarrow C5 \Rightarrow A4\)</p>
+
+<p>观察上面的全序关系你可以发现，从时间轴来看\(B5\)是早于\(A3\)发生的，但是在全序关系里面我们根据上面的定义给出的却是\(A3\)早于\(B5\)，可以发现Lamport逻辑时钟是一个正确的算法，即有因果关系的事件时序不会错，但并不是一个公平的算法，即没有因果关系的事件时序不一定符合实际情况。</p>
+
+<h2 id="toc_5">如何使用逻辑时钟解决分布式锁问题</h2>
+
+<p>上面的分析过于理论，下面我们来尝试使用逻辑时钟来解决分布式锁问题。</p>
+
+<p>分布式锁问题本质上是对于共享资源的抢占问题，我们先对问题进行定义：</p>
+
+<ol>
+<li>已经获得资源授权的进程，必须在资源分配给其他进程之前释放掉它；</li>
+<li>资源请求必须按照请求发生的顺序进行授权；</li>
+<li>在获得资源授权的所有进程最终释放资源后，所有的资源请求必须都已经被授权了。</li>
+</ol>
+
+<p>首先我们假设，<strong>对于任意的两个进程\(P_i\)和\(P_j\)，它们之间传递的消息是按照发送顺序被接收到的, 并且所有的消息最终都会被接收到。</strong><br/>
+每个进程会维护一个它自己的对其他所有进程都不可见的请求队列。我们假设该请求队列初始时刻只有一个消息\((T_0:P_0)\)资源请求，\(P_0\)代表初始时刻获得资源授权的那个进程，\(T_0\)小于任意时钟初始值 </p>
+
+<ol>
+<li>为请求该项资源，进程\(P_i\)发送一个\((T_m:P_i)\)资源请求（请求锁）消息给其他所有进程，并将该消息放入自己的请求队列，在这里\(T_m\)代表了消息的时间戳</li>
+<li>当进程\(P_j\)收到\((T_m:P_i)\)资源请求消息后，将它放到自己的请求队列中，并发送一个带时间戳的确认消息给\(P_i\)。(注：如果\(P_j\)已经发送了一个时间戳大于\(T_m\)的消息，那就可以不发送)</li>
+<li>释放该项资源（释放锁）时，进程\(P_i\)从自己的消息队列中删除所有的\((T_m:P_i)\)资源请求，同时给其他所有进程发送一个带有时间戳的\(P_i\)资源释放消息</li>
+<li>当进程\(P_j\)收到\(P_i\)资源释放消息后，它就从自己的消息队列中删除所有的\((T_m:P_i)\)资源请求</li>
+<li>当同时满足如下两个条件时，就将资源分配（锁占用）给进程\(P_i\)：
+<ul>
+<li>按照全序关系排序后，\((T_m:P_i)\)资源请求排在它的请求队列的最前面</li>
+<li>\(i\)已经从所有其他进程都收到了时间戳&gt;\(T_m\)的消息、</li>
+</ul></li>
+</ol>
+
+<p>下面我会用图例来说明上面算法运作的过程，假设我们有3个进程，根据算法说明，初始化状态各个进程队列里面都是(0:0)状态，此时锁属于P0。<br/>
+<img src="media/15489045404752/15490064189797.jpg" alt="初始状态"/></p>
+
+<p>接下来P1会发出请求资源的消息给所有其他进程，并且放到自己的请求队列里面，根据逻辑时钟算法，P1的时钟走到1，而接受消息的P0和P2的时钟为消息时间戳+1。<br/>
+<img src="media/15489045404752/15490066250546.jpg" alt="请求资源"/></p>
+
+<p>收到P1的请求之后，P0和P2要发送确认消息给P1表示自己收到了。注意，由于目前请求队列里面第一个不是P1发出的请求，所以此时锁仍属于P0。但是由于收到了确认消息，此时P1已经满足了获取资源的第一个条件：<strong>P1已经收到了其他所有进程时间戳大于1的消息。</strong><br/>
+<img src="media/15489045404752/15498551753772.jpg" alt="返回确认"/></p>
+
+<p>假设P0此时释放了锁（这里为了方便演示做了这个假设，实际上P0什么时候释放资源都可以，算法都是正确的，读者可自行推导），发送释放资源的消息给P1和P2，P1和P2收到消息之后把请求(0:0)从队列里面删除。<br/>
+<img src="media/15489045404752/15498552492316.jpg" alt=""/></p>
+
+<p>当P0释放了资源之后，我们发现P1满足了获取资源的两个条件：<strong>它的请求在队列最前面；P1已经收到了其他所有进程时间戳大于1的消息。</strong>也就是说此时P1就获取到了锁。</p>
+
+<p>值得注意的是，这个算法并不是容错的，有一个进程挂了整个系统就挂了，因为需要等待所有其他进程的响应，同时对网络的要求也很高。</p>
+
+<h2 id="toc_6">总结</h2>
+
+<p>如果你之前看过2PC，Paxos之类的算法，相信你看到最后一定会有一种似曾相识的感觉。实际上，Lamport提出的逻辑时钟可以说是分布式一致性算法的开山鼻祖，后续的所有分布式算法都有它的影子。我们不能想象现实世界中没有时间，而逻辑时钟定义了分布式系统里面的时间概念，解决了分布式系统中区分事件发生的时序问题。</p>
+
+<h2 id="toc_7">参考资料</h2>
+
+<ul>
+<li><a href="http://research.microsoft.com/users/lamport/pubs/time-clocks.pdf">Time, Clocks and the Ordering of Events in a Distributed System</a></li>
+<li><a href="https://www.zhihu.com/question/30084741/answer/71115362">将物理与计算机结合可以做些什么？</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/23278509">分布式系统理论基础 - 时间、时钟和事件顺序</a></li>
+<li><a href="http://www.cnblogs.com/fxjwind/archive/2013/04/13/3017892.h$T_m$l">全序, 分布式一致性的本质</a></li>
+<li><a href="http://betathoughts.blogspot.com/2007/06/brief-history-of-consensus-2pc-and.html">A brief history of Consensus, 2PC and Transaction Commit</a></li>
+<li><a href="http://ju.outofmemory.cn/entry/47601">我对Lamport Logical Clock的理解</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[编写高质量代码的思考]]></title>
+    <link href="https://blog.xiaohansong.com/high-quality-code.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/high-quality-code.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>最近在看《代码大全》，可以说是一本软件开发的百科全书，特别厚，但是干货也很多。平时写代码，代码规范是一个最低的要求（很多老代码连最低要求都达不到），为什么要这样规定代码要这么写，而不是那么写？这是一个值得深究的问题。而不是说我照着代码规范写代码就算完了，高质量的代码是一个专业工程师的追求。要知其然知其所以然，最近写发票解析的代码，因为涉及带解析PDF的算法，复杂度比较高，所以花了很多时间在重构，学以致用的时候积累了一些心得。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">信息隐藏原则</h2>
+
+<p>信息隐藏是面向对象设计的一个原则，是对封装和模块化的一个更高维度的概括。从Java的整个访问限制设计就体现了信息隐藏的原则，各种访问修饰符：<code>public,protect,private</code>，在类设计的时候，我们就要决定什么暴露给外部，什么隐藏起来。</p>
+
+<p>举一个例子下面的代码表示一个有自增ID的<code>Person</code>类。</p>
+
+<pre><code class="language-text">public class Person {
+    int id;
+    private static int G_MAX_ID = 0;
+    public Person() {
+      this.id = ++G_MAX_ID;
+    }
+}
+</code></pre>
+
+<p>上面的类设计有什么问题呢？它违反了信息隐藏的原则，直接将ID分配的方式暴露了，这会给后面的维护带来很多问题：当你想给id的范围做出限制的时候怎么办？当你在所有代码中使用<code>++G_MAX_ID</code>分配ID时突然需要修改ID分配的算法怎么办？是不是需要去改所有<code>++G_MAX_ID</code>出现的地方？更好的设计是将ID的分配算法隐藏起来。</p>
+
+<pre><code class="language-text">public class Person {
+    int id;
+    private static int G_MAX_ID = 0;
+    public Person() {
+      this.id = NewId();
+    }
+    private int NewId() {
+      return ++G_MAX_ID;
+    }
+}
+</code></pre>
+
+<p>咋一看只是将<code>++G_MAX_ID</code>写到一个方法里面而已，但是它隐藏了ID分配的算法，让调用者不需要关心里面的实现，同时控制了变化，不管ID分配算法怎么变，都不会影响其他的代码。调用者了解的信息越多，受到的影响就越大，信息隐藏可以降低复杂度，控制变化的范围。</p>
+
+<p>上面的例子只是信息隐藏的一个简单应用，下面我们来举几个其他的应用例子：</p>
+
+<ul>
+<li>为什么不推荐使用魔法值（即未经定义的常量）？：这个明显违反了信息隐藏的原则，当你将字面量直接写在代码里面时，就将信息直接暴露了，后面需要修改的时候，一旦少改了某个地方的字面量，bug就出现了。</li>
+<li>循环依赖（即A调用B，B调用A的情况）：类或方法之间的循环依赖会破坏信息隐藏，一个很直接的影响就是在测试的时候，A，B都需要同时准备好才能进行测试，而无法mock任意一方。</li>
+<li>使用全局变量：这个就不用说了，所有人都可以访问你的时候信息就暴露无疑了，全局变量能不用就不用。</li>
+<li>考虑性能损失：有时候我们为了一些性能上的考虑就破坏信息隐藏原则，将一些变量全局化，这样性能提高得不多，维护成本却上升不少，完全是得不偿失。</li>
+</ul>
+
+<p>最后总结一下信息隐藏的好处：</p>
+
+<ul>
+<li>隐藏信息即隐藏了复杂度，降低了编程的负担。</li>
+<li>隐藏信息即隐藏了底层变化，以便于在局部控制变化。</li>
+</ul>
+
+<h2 id="toc_2">一些不太常见的编程技巧</h2>
+
+<h3 id="toc_3">函数(function)与过程(procedure)的选择</h3>
+
+<p>我们先来看看函数与过程区别：</p>
+
+<ul>
+<li>Function：有返回值的方法</li>
+<li>Procedure：没有返回值的方法</li>
+</ul>
+
+<p>平时我们编程其实没有太区别函数与过程，什么时候用函数，什么时候用过程其实没有过多的考虑，感觉都可以用。一个选择的规则就是<strong>当你的方法的目的是想返回跟你方法名称相符的值的时候用函数，否则用过程</strong></p>
+
+<p>举个例子，我看过很多<code>XXProcessor</code>接口里面的方法都是<code>XX process()</code>，严格来讲，这样的命名是不符合上面的规则的，<code>process</code>是一个没有含义的命名，但是却有返回值，如果没有返回值那它的命名才是合理的。</p>
+
+<p>当然了，上面的规则仅供参考，世事无绝对，具体情况具体分析，当你不清楚用函数还是用过程的时候，可以参考这个规则。</p>
+
+<h3 id="toc_4">使用boolean值来给程序做注释</h3>
+
+<p>相信大家看到一个if语句有很多条件的时候都会特别头痛，因为很难理解。例如下面的例子：</p>
+
+<pre><code class="language-text">if ( ( elementIndex &lt; 0 ) || ( MAX_ELEMENTS &lt; elementIndex ) || elementIndex == lastElementIndex) {
+  do....
+}
+</code></pre>
+
+<p>但如果换成下面的写法，用boolean值的名字来给if语句注释，看起来就很好理解了。</p>
+
+<pre><code class="language-text">finished = ( ( elementIndex &lt; 0 ) || ( MAX_ELEMENTS &lt; elementIndex ) );
+repeatedEntry = ( elementIndex == lastElementIndex );
+if ( finished || repeatedEntry ) {
+...
+}
+</code></pre>
+
+<h2 id="toc_5">总结</h2>
+
+<p>怎么写高质量的代码是一个很大的话题，这里只是抛砖引玉，其实面向对象设计的很多原则都能够给我们写代码的时候提供指导，写代码的时候要时刻记得学以致用，而不是敷衍了事，专业的软件工程师必然要能写得一手好代码。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[【Getty】Java NIO框架设计与实现]]></title>
+    <link href="https://blog.xiaohansong.com/getty.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/getty.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p><a href="https://github.com/x-hansong/Getty">Getty</a>是我为了学习 Java NIO 所写的一个 NIO 框架，实现过程中参考了 Netty 的设计，同时使用 Groovy 来实现。虽然只是玩具，但是麻雀虽小，五脏俱全，在实现过程中，不仅熟悉了 NIO 的使用，还借鉴了很多 Netty 的设计思想，提升了自己的编码和设计能力。</p>
+
+<p>至于为什么用 Groovy 来写，因为我刚学了 Groovy，正好拿来练手，加上 Groovy 是兼容 Java 的，所以只是语法上的差别，底层实现还是基于 Java API的。</p>
+
+<p>Getty 的核心代码行数不超过 500 行，一方面得益于 Groovy 简洁的语法，另一方面是因为我只实现了核心的逻辑，最复杂的其实是解码器实现。脚手架容易搭，摩天大楼哪有那么容易盖，但用来学习 NIO 足以。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">线程模型</h2>
+
+<p>Getty 使用的是 Reactor 多线程模型<br/>
+<img src="media/15473672636821/15473736319882.png" alt=""/></p>
+
+<ol>
+<li>有专门一个 NIO 线程- Acceptor 线程用于监听服务端，接收客户端的 TCP 连接请求，然后将连接分配给工作线程，由工作线程来监听读写事件。</li>
+<li>网络 IO 操作-读/写等由多个工作线程负责，由这些工作线程负责消息的读取、解码、编码和发送。</li>
+<li>1 个工作线程可以同时处理N条链路，但是 1 个链路只对应 1 个工作线程，防止发生并发操作问题。</li>
+</ol>
+
+<h2 id="toc_2">事件驱动模型</h2>
+
+<p>整个服务端的流程处理，建立于事件机制上。在 [接受连接－＞读－＞业务处理－＞写 －＞关闭连接 ]这个过程中，触发器将触发相应事件，由事件处理器对相应事件分别响应，完成服务器端的业务处理。</p>
+
+<h3 id="toc_3">事件定义</h3>
+
+<ol>
+<li><code>onRead</code>：当客户端发来数据，并已被工作线程正确读取时，触发该事件 。该事件通知各事件处理器可以对客户端发来的数据进行实际处理了。</li>
+<li><code>onWrite</code>：当客户端可以开始接受服务端发送数据时触发该事件，通过该事件，我们可以向客户端发送响应数据。（当前的实现中并未使用写事件）</li>
+<li><code>onClosed</code>：当客户端与服务器断开连接时触发该事件。</li>
+</ol>
+
+<h3 id="toc_4">事件回调机制的实现</h3>
+
+<p>在这个模型中，事件采用广播方式，也就是所有注册的事件处理器都能获得事件通知。这样可以将不同性质的业务处理，分别用不同的处理器实现，使每个处理器的功能尽可能单一。</p>
+
+<p>如下图：整个事件模型由监听器、事件适配器、事件触发器（HandlerChain，PipeLine）、事件处理器组成。<br/>
+<img src="media/15473672636821/15473736631294.png" alt=""/></p>
+
+<ul>
+<li><p><code>ServerListener</code>：这是一个事件接口，定义需监听的服务器事件</p>
+<pre><code class="language-text">interface ServerListener extends Serializable{
+    /**<br/>
+     * 可读事件回调<br/>
+     * @param request<br/>
+     */<br/>
+    void onRead(ctx)<br/>
+    /**<br/>
+     * 可写事件回调<br/>
+     * @param request<br/>
+     * @param response<br/>
+     */<br/>
+    void onWrite(ctx)<br/>
+    /**<br/>
+     * 连接关闭回调<br/>
+     * @param request<br/>
+     */<br/>
+    void onClosed(ctx)<br/>
+}
+</code></pre></li>
+<li><p><code>EventAdapter</code>：对 Serverlistener 接口实现一个适配器 (EventAdapter)，这样的好处是最终的事件处理器可以只处理所关心的事件。</p>
+<pre><code class="language-text">class EventAdapter implements ServerListener {
+    //下个处理器的引用<br/>
+    protected next<br/>
+    void onRead(Object ctx) {<br/>
+    }<br/>
+    void onWrite(Object ctx) {<br/>
+    }<br/>
+    void onClosed(Object ctx) {<br/>
+    }<br/>
+}
+</code></pre></li>
+<li><p><code>Notifier</code>：用于在适当的时候通过触发服务器事件，通知在册的事件处理器对事件做出响应。</p>
+<pre><code class="language-text">interface Notifier extends Serializable{
+    /**<br/>
+     * 触发所有可读事件回调<br/>
+     */<br/>
+    void fireOnRead(ctx)<br/>
+    /**<br/>
+     * 触发所有可写事件回调<br/>
+     */<br/>
+    void fireOnWrite(ctx)<br/>
+    /**<br/>
+     * 触发所有连接关闭事件回调<br/>
+     */<br/>
+    void fireOnClosed(ctx)<br/>
+}
+</code></pre></li>
+<li><p><code>HandlerChain</code>：实现了<code>Notifier</code>接口，维持有序的事件处理器链条，每次从第一个处理器开始触发。</p>
+<pre><code class="language-text">class HandlerChain implements Notifier{
+    EventAdapter head<br/>
+    EventAdapter tail<br/>
+    /**<br/>
+     * 添加处理器到执行链的最后<br/>
+     * @param handler<br/>
+     */<br/>
+    void addLast(handler) {<br/>
+        if (tail != null) {<br/>
+            tail.next = handler<br/>
+            tail = tail.next<br/>
+        } else {<br/>
+            head = handler<br/>
+            tail = head<br/>
+        }<br/>
+    }<br/>
+    void fireOnRead(ctx) {<br/>
+        head.onRead(ctx)<br/>
+    }<br/>
+    void fireOnWrite(ctx) {<br/>
+        head.onWrite(ctx)<br/>
+    }<br/>
+    void fireOnClosed(ctx) {<br/>
+        head.onClosed(ctx)<br/>
+    }<br/>
+}
+</code></pre></li>
+<li><p><code>PipeLine</code>：实现了<code>Notifier</code>接口，作为事件总线，维持一个事件链的列表。</p>
+<pre><code class="language-text">class PipeLine implements Notifier{
+    static logger = LoggerFactory.getLogger(PipeLine.name)<br/>
+    //监听器队列<br/>
+    def listOfChain = []<br/>
+    PipeLine(){}<br/>
+    /**<br/>
+     * 添加监听器到监听队列中<br/>
+     * @param chain<br/>
+     */<br/>
+    void addChain(chain) {<br/>
+        synchronized (listOfChain) {<br/>
+            if (!listOfChain.contains(chain)) {<br/>
+                listOfChain.add(chain)<br/>
+            }<br/>
+        }<br/>
+    }<br/>
+    /**<br/>
+     * 触发所有可读事件回调<br/>
+     */<br/>
+    void fireOnRead(ctx) {<br/>
+        logger.debug(&quot;fireOnRead&quot;)<br/>
+        listOfChain.each { chain -&gt;<br/>
+            chain.fireOnRead(ctx)<br/>
+        }<br/>
+    }<br/>
+    /**<br/>
+     * 触发所有可写事件回调<br/>
+     */<br/>
+    void fireOnWrite(ctx) {<br/>
+        listOfChain.each { chain -&gt;<br/>
+            chain.fireOnWrite(ctx)<br/>
+        }<br/>
+    }<br/>
+    /**<br/>
+     * 触发所有连接关闭事件回调<br/>
+     */<br/>
+    void fireOnClosed(ctx) {<br/>
+        listOfChain.each { chain -&gt;<br/>
+            chain.fireOnClosed(ctx)<br/>
+        }<br/>
+    }<br/>
+}
+</code></pre></li>
+</ul>
+
+<h3 id="toc_5">事件处理流程</h3>
+
+<p><img src="media/15473672636821/15473736834856.png" alt=""/></p>
+
+<p>事件处理采用职责链模式，每个处理器处理完数据之后会决定是否继续执行下一个处理器。如果处理器不将任务交给线程池处理，那么整个处理流程都在同一个线程中处理。而且每个连接都有单独的<code>PipeLine</code>，工作线程可以在多个连接上下文切换，但是一个连接上下文只会被一个线程处理。</p>
+
+<h2 id="toc_6">核心类</h2>
+
+<h3 id="toc_7">ConnectionCtx</h3>
+
+<p>连接上下文<code>ConnectionCtx</code></p>
+
+<pre><code class="language-text">class ConnectionCtx {
+    /**socket连接*/
+    SocketChannel channel
+    /**用于携带额外参数*/
+    Object attachment
+    /**处理当前连接的工作线程*/
+    Worker worker
+    /**连接超时时间*/
+    Long timeout
+    /**每个连接拥有自己的pipeline*/
+    PipeLine pipeLine
+}
+</code></pre>
+
+<h3 id="toc_8">NioServer</h3>
+
+<p>主线程负责监听端口，持有工作线程的引用（使用轮转法分配连接），每次有连接到来时，将连接放入工作线程的连接队列，并唤醒线程<code>selector.wakeup()</code>（线程可能阻塞在<code>selector</code>上）。</p>
+
+<pre><code class="language-text">class NioServer extends Thread {
+    /**服务端的套接字通道*/
+    ServerSocketChannel ssc
+    /**选择器*/
+    Selector selector
+    /**事件总线*/
+    PipeLine pipeLine
+    /**工作线程列表*/
+    def workers = []
+    /**当前工作线程索引*/
+    int index
+}
+</code></pre>
+
+<h3 id="toc_9">Worker</h3>
+
+<p>工作线程，负责注册server传递过来的socket连接。主要监听读事件，管理socket，处理写操作。</p>
+
+<pre><code class="language-text">class Worker extends Thread {
+    /**选择器*/
+    Selector selector
+    /**读缓冲区*/
+    ByteBuffer buffer
+    /**主线程分配的连接队列*/
+    def queue = []
+    /**存储按超时时间从小到大的连接*/
+    TreeMap&lt;Long, ConnectionCtx&gt; ctxTreeMap
+
+    void run() {
+        while (true) {
+            selector.select()
+            //注册主线程发送过来的连接
+            registerCtx()
+            //关闭超时的连接
+            closeTimeoutCtx()
+            //处理事件
+            dispatchEvent()
+        }
+    }
+}
+</code></pre>
+
+<h2 id="toc_10">运行一个简单的 Web 服务器</h2>
+
+<p>我实现了一系列处理<code>HTTP</code>请求的处理器，具体实现看代码。</p>
+
+<ul>
+<li><code>LineBasedDecoder</code>：行解码器，按行解析数据</li>
+<li><code>HttpRequestDecoder</code>：HTTP请求解析，目前只支持GET请求</li>
+<li><code>HttpRequestHandler</code>：Http 请求处理器，目前只支持GET方法</li>
+<li><code>HttpResponseHandler</code>：Http响应处理器</li>
+</ul>
+
+<p>下面是写在<code>test</code>中的例子</p>
+
+<pre><code class="language-text">class WebServerTest {
+    static void main(args) {
+        def pipeLine = new PipeLine()
+
+        def readChain = new HandlerChain()
+        readChain.addLast(new LineBasedDecoder())
+        readChain.addLast(new HttpRequestDecoder())
+        readChain.addLast(new HttpRequestHandler())
+        readChain.addLast(new HttpResponseHandler())
+
+        def closeChain = new HandlerChain()
+        closeChain.addLast(new ClosedHandler())
+
+        pipeLine.addChain(readChain)
+        pipeLine.addChain(closeChain)
+
+        NioServer nioServer = new NioServer(pipeLine)
+        nioServer.start()
+    }
+}
+</code></pre>
+
+<p>另外，还可以使用配置文件<code>getty.properties</code>设置程序的运行参数。</p>
+
+<pre><code class="language-text">#用于拼接消息时使用的二进制数组的缓存区
+common_buffer_size=1024
+#工作线程读取tcp数据的缓存大小
+worker_rcv_buffer_size=1024
+#监听的端口
+port=4399
+#工作线程的数量
+worker_num=1
+#连接超时自动断开时间
+timeout=900
+#根目录
+root=.
+</code></pre>
+
+<h2 id="toc_11">总结</h2>
+
+<p><a href="https://github.com/x-hansong/Getty">Getty</a>是我造的第二个小轮子，第一个是<a href="https://github.com/x-hansong/RedisHttpSession">RedisHttpSession</a>。都说不要重复造轮子。这话我是认同的，但是掌握一门技术最好的方法就是实践，在没有合适项目可以使用新技术的时候，造一个简单的轮子是不错的实践手段。</p>
+
+<p><a href="https://github.com/x-hansong/Getty">Getty</a> 的缺点或者说还可以优化的点：</p>
+
+<ol>
+<li>线程的使用直接用了<code>Thread</code>类，看起来有点low。等以后水平提升了再来抽象一下。</li>
+<li>目前只有读事件是异步的，写事件是同步的。未来将写事件也改为异步的。</li>
+</ol>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[代码生成利器：IDEA 强大的 Live Templates]]></title>
+    <link href="https://blog.xiaohansong.com/idea-live-templates.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/idea-live-templates.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>Java 开发过程经常需要编写有固定格式的代码，例如说声明一个私有变量，<code>logger</code>或者<code>bean</code>等等。对于这种小范围的代码生成，我们可以利用 IDEA 提供的 <code>Live Templates</code>功能。刚开始觉得它只是一个简单的<code>Code Snippet</code>，后来发现它支持变量函数配置，可以支持很复杂的代码生成。下面我来介绍一下<code>Live Templates</code>的用法。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">基本使用</h2>
+
+<p>IDEA 自带很多常用的动态模板，在 Java 代码中输入<code>fori</code>，回车就会出现</p>
+
+<pre><code class="language-text">for (int i = 0; i &lt; ; i++) {
+
+}
+</code></pre>
+
+<p><img src="media/15473672637779/15473882756117.gif" alt=""/></p>
+
+<p>按<code>Tab</code>可以在各个空白处跳转，手动填值。</p>
+
+<h2 id="toc_2">自定义 Template</h2>
+
+<p>官方自带模板毕竟不能满足我们个人编码风格的需要，<code>Live Templates</code>提供了变量函数的方式供我们自定义。</p>
+
+<h3 id="toc_3">简单用法</h3>
+
+<p>新增自定义模板，首先需要填写触发单词（即 Abbreviation），描述是可选的，然后定义模板的上下文，点击<code>define</code>选择<code>Java</code>，这样在编辑 Java 的时候就会触发当前模板，定义完上下文之后，就可以填写模板了。</p>
+
+<p><img src="media/15473672637779/15473882864833.gif" alt=""/></p>
+
+<p>下面列举几个我常用的简单模板</p>
+
+<pre><code class="language-text">==========
+&lt;out&gt;
+----------
+System.out.println($END$)
+==========
+&lt;pfs&gt;
+----------
+private final static String $varName$  = &quot;$var$&quot;;`
+==========
+&lt;privateField&gt;
+----------
+/**
+ * $COMMENT$
+ */
+@Getter
+@Setter
+private $TYPE$ $NAME$;
+==========
+&lt;main&gt;
+----------
+public static void main(String[] args) {
+     $END$
+}
+==========
+</code></pre>
+
+<p>模板支持变量的定义，使用<code>$$</code>包围的字符表示一个变量。<code>$END$</code>是一个特殊的预定义变量，表示光标最后跳转的位置。每个变量的位置都可以跳转过去。</p>
+
+<h3 id="toc_4">高级用法</h3>
+
+<p>如果你用过 vim 的<code>Code Sinppet</code>插件，你会发现模板里面是可以执行函数的，强大的 <code>Live Templates</code>当然也支持，而且 IDEA 能够感知代码的语义，例如说当前编辑的函数的参数。但这一点就能够让我们玩出花来。我们从易到难来研究模板函数的功能。<br/>
+<img src="media/15473672637779/15473883014796.gif" alt=""/></p>
+
+<p>前面我们提到的变量可以绑定函数，配置方式如上图所示。</p>
+
+<h4 id="toc_5">快速声明变量</h4>
+
+<p>声明变量是一个常用的操作，特别是需要声明变量需要加注解，注释的时候，这些代码写起来就很枯燥。下面是我定义的模板：</p>
+
+<pre><code class="language-text">&lt;osgiRef&gt;
+----------
+/**
+ * $END$
+ */
+@OsgiReference
+@Setter
+private $TYPE$ $NAME$;
+</code></pre>
+
+<p>乍一看这个模板跟我上面定义的<code>privateField</code>差不多，唯一的不同在于我给这些变量绑定了函数。</p>
+
+<ol>
+<li><code>clipboard()</code>：返回当前粘贴板的字符串</li>
+<li><code>decapitalize()</code>：将输入的字符串首字母变为小写</li>
+</ol>
+
+<p>下面我们演示一下，我们先拷贝当前类名，然后输入<code>osgiRef</code><br/>
+<img src="media/15473672637779/15473883132715.gif" alt=""/></p>
+
+<h4 id="toc_6">快速声明 logger</h4>
+
+<p>声明 logger 也是一个常用的操作，上面我们是利用了粘贴函数来快速声明变量，现在我们来利用另一个函数<code>className()</code>，顾名思义，它的作用就是返回当前类名。</p>
+
+<pre><code class="language-text">&lt;logger&gt;
+----------
+/** logger */
+private static final Logger LOGGER = LoggerFactory.getLogger($CLASS$.class);
+</code></pre>
+
+<p><img src="media/15473672637779/15473883217300.gif" alt=""/></p>
+
+<h4 id="toc_7">最强大的 groovyScript()</h4>
+
+<p>如果说上面用到的函数提供的能力有限，不够灵活，那么<code>groovyScript()</code>提供了一切你想要的能力，它支持执行 Groovy 脚本处理输入，然后输出处理后的字符串。</p>
+
+<pre><code class="language-text">groovyScript(&quot;code&quot;, ...)
+
+|  code   |   一段Groovy代码或者Groovy脚本代码绝对路径    |
+|  ...    |   可选入参，这些参数会绑定到`_1, _2, _3, ..._n`, 在 Groovy 代码中使用。|
+</code></pre>
+
+<p>下面我们来看一下它的实际应用。</p>
+
+<h5 id="toc_8">快速 bean 配置</h5>
+
+<p>新增一个服务都要在 Spring 中注册一个 bean，一般这个配置无非就是将指明<code>id</code>和<code>class</code>，由于我们是在 xml 中配置，所以不能利用<code>className()</code>函数，但是我们可以利用<code>clipboard()</code>函数获取到类的全引用，在 IDEA 中我们直接右键类名，点击<code>Copy Reference</code>就行。然后执行 groovy 脚本获取类名。</p>
+
+<pre><code class="language-text">&lt;bean&gt;
+----------
+&lt;bean id=&quot;$id$&quot; class=&quot;$REF$&quot; /&gt;
+</code></pre>
+
+<p><code>id</code>绑定<code>decapitalize(groovyScript(&quot;_1.tokenize(&#39;.&#39;)[-1]&quot;, clipboard()))</code>，首先取<code>clipboard()</code>的值得到类的全引用，然后执行 groovy 代码<code>_1.tokenize(&#39;.&#39;)[-1]</code>（按<code>.</code>分割为字符串数组，然后取最后一个即可得到类名，然后用<code>decapitalize()</code>将首字母小写即可得到<code>id</code>。</p>
+
+<p><img src="media/15473672637779/15473883331042.gif" alt=""/></p>
+
+<h5 id="toc_9">快速打印当前上下文信息</h5>
+
+<p>打印错误日志的时候需要打印当前上下文信息的，例如说入参，有时候入参很多的时候，写起来很痛苦，好在有模板函数<code>methodParameters()</code>，返回当前函数参数的列表，当然这个列表我们不能直接使用，需要结合<code>groovyScript</code>对它进行转化。</p>
+
+<pre><code class="language-text">&lt;printContext&gt;
+---------------
+LogUtil.$TYPE$(LOGGER, &quot;$MSG$ &quot; + $params$);
+</code></pre>
+
+<p>将<code>params</code>绑定到<code>groovyScript(&quot;&#39;\&quot;&#39; + _1.collect { it + &#39; = [\&quot; + &#39; + it + &#39; + \&quot;]&#39;}.join(&#39;, &#39;) + &#39;\&quot;&#39;&quot;, methodParameters())</code>，就能够自动将当前函数的参数格式化后输出。</p>
+
+<p><img src="media/15473672637779/15473883415121.gif" alt=""/></p>
+
+<h2 id="toc_10">总结</h2>
+
+<p>上面我们简单介绍了常用的模板函数，其实 IDEA 还有很多其它模板函数，具体参考<a href="https://www.jetbrains.com/help/idea/2016.3/creating-and-editing-template-variables.html">Creating and Editing Template Variables</a>。IDEA 是一个很强大的工具，善用工具能够极大的提高工作效率，将精力投入到关键的事情上，而不是将时间浪费在编写重复代码上面。一些更高级的用法还有待大家去发掘。最后推广一波我写的代码生成插件<a href="https://github.com/x-hansong/CodeMaker">CodeMaker</a>，好好利用也能节省很多重复编写代码的时间。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[IDEA代码生成插件CodeMaker]]></title>
+    <link href="https://blog.xiaohansong.com/codemaker.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/codemaker.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>Java 开发过程中经常会遇到编写重复代码的事情，例如说：编写领域类和持久类的时候，大部分时候它们的变量名称，类型是一样的，在编写领域类的时候常常要重复写类似的代码。类似的问题太多，却没找到可以支持自定义代码模板的插件，只能自己动手，丰衣足食，开发了一个 IDEA 的代码生成插件，通过 Velocity 支持自定义代码模板来生成代码。</p>
+
+<span id="more"></span><!-- more -->
+
+<p><img src="media/15473672636863/15473884273212.gif" alt=""/></p>
+
+<p><strong>项目地址</strong>：<a href="https://github.com/x-hansong/CodeMaker">CodeMaker</a></p>
+
+<h2 id="toc_1">主要功能</h2>
+
+<ol>
+<li>支持增加自定义代码模板（Velocity）</li>
+<li>支持选择多个类作为代码模板的上下文</li>
+</ol>
+
+<h2 id="toc_2">安装</h2>
+
+<p>下载插件：<a href="https://github.com/x-hansong/CodeMaker/releases/download/1.2/CodeMaker-1.2.zip">CodeMaker.zip</a></p>
+
+<ol>
+<li>打开设置，选择“Plugin”</li>
+<li>在右边的框中点击“Install plugin from disk”</li>
+<li>选择上面下载的“CodeMaker.zip”</li>
+<li>点击“Apply”，然后重启 IDEA。</li>
+</ol>
+
+<h2 id="toc_3">使用</h2>
+
+<p>在 Java 类编辑界面右键“Generate”，选择对应模板即可自动生成代码到当前类的包，大部分情况下生成的代码已经解决了百分之八十的问题，只需稍作修改，移动到合适的包中，就能快速完成代码编写。<br/>
+<img src="media/15473672636863/15473884589294.png" alt=""/></p>
+
+<p>如果代码模板需要除了当前类之外的类作为上下文，可以通过类选择框进行选择。<br/>
+<img src="media/15473672636863/15473884679965.png" alt=""/></p>
+
+<p>目前自带的两个模板：</p>
+
+<ol>
+<li><strong>Model</strong>：根据当前类生成一个与其拥有类似属性的类，用于自动生成持久类对应的领域类（在持久类拥有超过10个属性的情况下，能够节省大量时间）。</li>
+<li><strong>Converter</strong>：该模板需要两个类作为输入的上下文，用于自动生成领域类与持久类的转化类。</li>
+</ol>
+
+<p>上面两个模板是我自己工作中常用的模板，仅供大家参考，自带的模板可能满足不了大家的需求，<strong>所以插件支持自定义新的代码模板</strong>。</p>
+
+<h2 id="toc_4">模板配置</h2>
+
+<p><img src="media/15473672636863/15473884761333.png" alt=""/></p>
+
+<ol>
+<li><strong>增加模板</strong>：点击“Add Template”后，填写相关配置（都不能为空），点击保存后即可生效，无需重启。（感谢<code>khotyn</code>提醒）</li>
+<li><strong>删除模板</strong>：点击“Delete Template”就能将该模板删除</li>
+</ol>
+
+<p><img src="media/15473672636863/15473884844568.png" alt=""/></p>
+
+<ol>
+<li><strong>Template Name</strong>：在生成菜单中显示的名称，英文命名</li>
+<li><strong>Class Number</strong>：该模板需要的输入上下文类的数量，例如：如果为 1，,将当前的类作为输入：<code>$class0</code>；如果为 2，需要用户再选择一个类作为输入：<code>$class0, $class1</code>。</li>
+<li><strong>Class Name</strong>：生成的类的名称，支持通过 Velocity 进行配置，上下文为跟代码模板的相同。</li>
+</ol>
+
+<h2 id="toc_5">模板上下文</h2>
+
+<p>模板上下文包含了以下变量：</p>
+
+<pre><code class="language-text">########################################################################################
+##
+## Common variables:
+##  $YEAR - yyyy
+##  $TIME - yyyy-MM-dd HH:mm:ss
+##  $USER - user.name
+##
+## Available variables:
+##  $class0 - the context class
+##  $class1 - the selected class, like $class2, $class2
+##  $ClassName - generate by the config of &quot;Class Name&quot;, the generated class name
+##
+## Class Entry Structure:
+##  $class0.className - the class Name
+##  $class0.packageName - the packageName
+##  $class0.importList - the list of imported classes name
+##  $class0.fields - the list of the class fields
+##          - type: the field type
+##          - name: the field name
+##          - modifier: the field modifier, like &quot;private&quot;
+##  $class0.methods - the list of class methods
+##          - name: the method name
+##          - modifier: the method modifier, like &quot;private static&quot;
+##          - returnType: the method returnType
+##          - params: the method params, like &quot;(String name)&quot;
+##
+########################################################################################
+</code></pre>
+
+<p>具体用法可参考自带的代码模板，通过模板上下文提供的定制能力，可以让每个用户都定制自己的风格的代码模板。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[2016 我的校招经历与经验]]></title>
+    <link href="https://blog.xiaohansong.com/Recruitment-experience.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/Recruitment-experience.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>我的校招今年结束得比较早，主要是因为拿的都是 9 月初提前批的 offer。今年的校招我拿了网易，阿里的 offer，而且都不是批发价。网易内推比较早，发 offer 也早，所以是我第一个拿到的 offer。不过我最想去的是阿里，所以在阿里给我发了 offer 之后，我就没有再参加腾讯，百度的面试了。想想还是总结一下找工作的经验，让大家参考一下，希望有所帮助。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">校招经历</h2>
+
+<p>我大一大二的时候基本什么都搞：ACM（只坚持了一个寒假），前端，安卓，PHP，Python，甚至还跟着院长研究过虚拟桌面传输框架 Spice 的源码。从大三开始我就已经决定好了找工作的方向：Java 开发，所以后面做项目都是围绕着 Java 展开。大三的寒假的时候刷 leecode，为笔试做准备。</p>
+
+<p>到了内推的时候，第一个内推面试是阿里云，表现得不好，面试官的评价是基础扎实，但是缺乏亮点。后来我想了一下，确实之前做的项目没什么亮点，不过还好阿里实习生的正式面试还有两个月时间给我准备，所以当时我就开始准备做 <a href="https://github.com/x-hansong/RedisHttpSession">RedisHttpSession</a> 这个开源项目，用 Redis 来做共享 Session，这个项目在我后面的阿里实习生面试我自己感觉还是有用的。</p>
+
+<p>第二个内推的是腾讯的安全部门，结果面试官是做 C/C++，所以面试官只能问我基础的东西，因为我做的都是 Java 的项目，他也不感兴趣。结果就是我的基础不扎实，因为我把大部分时间用来准备 Java 的 JVM，并发等问题上，所以过不了也正常。</p>
+
+<p>后来又投了英特尔，结果面试官问我熟不熟悉 Python，我说用 Python 做过爬虫，然后就把我录用，成了我第一个拿到的实习 offer，不过面试这么水其实也不是很想去。</p>
+
+<p>内推到这基本就结束了，后面就是正式的实习生招聘。</p>
+
+<p>第一个是腾讯，结果面的又是 C/C++ 的安全岗，面试官问了很多基础的东西，像 TCP 的超时时间，一个 TCP 连接需要消耗的资源，如何评估机器的最大连接数等，这方面我接触的不多，所以又挂了。</p>
+
+<p>第二个是网易游戏，面的是运营开发，刚好是 Java 岗，一面问了 Java 的基础，二面问了做项目遇到的问题，怎么解决的。等了一个星期以为挂了，后面突然打电话说我过了。拿了第二个实习 offer。</p>
+
+<p>最后是阿里，内推最早，正式招聘最晚。一面一开始就问一些开放性问题，答的不好，犯得毛病就是一开始就陷入技术实现无法自拔，结果答非所问。然后面试官觉得开放性问题问了也白问就开始问我 Java 基础，还好我 Java 基础比较扎实，他越问越深入，从语法问到 JVM 实现，其中穿插问一些算法数据结构，操作系统，数据库的问题，基本都答上来了。最后问了我做的 <a href="https://github.com/x-hansong/RedisHttpSession">RedisHttpSession</a>，针对这个项目问了一些实际的问题：共享 session 会不会带来安全问题等。整个面试持续了 1 个小时，问了很多问题。一面完了感觉还是有希望的，前面的开放性问题虽然答的不好，但后面的基础和项目答的还不错。果然不久就有二面了。到了二面，面试官问了一些项目的问题，还问了我对软件工程的看法，因为我的专业就是软件工程。最后是 HR 面，HR 是个大叔，当时我以为还是技术面，一开始他问我项目遇到的难题是怎么解决的，我跟他扯了一堆技术细节。后面他问了一些生活学习上的问题，我才意识到是 HR 面，总之跟 HR 聊的挺开心的，整个过程他都是笑眯眯的。晚上很快就收到了实习 offer，特别开心，然后就拒了其他 offer。</p>
+
+<p>就这样，我来到了杭州的蚂蚁金服，也就是支付宝实习。实习的经历有很多可以讲，但是篇幅所限就不细说了。总的经验就是：<strong>要多思考并且让别人看到你的思考</strong>。</p>
+
+<p>怎么理解？多思考就是做一件事情不是说做完就算了，而是要思考怎样做到更好，反省自己的问题；让别人看到你的思考就是说要让你的主管同事们看到你的思考，例如说你可以把你思考的东西写在周报上，或者跟你的师兄进行讨论等。</p>
+
+<p>实习期间网易的内推很早就开始，于是我就参加了跨境电商的 Java 面，前两面相当顺利，所以给我加了总监面，总监面问得有点压力。值得一提的是网易的笑招组（没有打错）很有意思，发的通知都特别调皮，在杭州 G20 过后给我发了 offer。</p>
+
+<p>最后是阿里的转正面试，其实转正面试主要是考核你在短短两三个月的实习中的成长，对于做业务系统需求的实习生来说，最重要莫过于你对业务的理解有多深，对于项目的业务意义有多清楚，以及实现过程遇到问题的解决方式。简单来说就是讲清楚，并且要从更高的维度开始讲。我当时跟 P9 的面试官讲我做的项目，是从整个大的主业务慢慢讲到自己做的项目，将我做的改动的业务意义讲得很清楚，于是他也听得津津有味，一连听我讲了两个项目，对我的评价也很好。也就是说也许你做的改动特别小，可能就是个增删改查，但是一旦你能想清楚你所做的改动对于整个业务的意义，此时它就不是一个简单的东西，而是有特定业务意义。如果你停留在做增删改查的层次，那么面试官绝对不会满意的。要想清楚业务的意义除了自己思考之外，一定要求助于对业务最熟悉的那个人，让他帮你理清思路。</p>
+
+<p>我的整个校招经历基本就讲完了，拿了支付宝 offer 之后就没有继续面其他公司了，直接跑来继续实习了。在支付宝工作，技术上的成长是特别快的。</p>
+
+<h2 id="toc_2">校招经验</h2>
+
+<p>下面总结一下我的校招经验，供大家参考。</p>
+
+<h3 id="toc_3">重视找实习</h3>
+
+<p>一般每年3月份开始也就是春招的时候很多大公司就会开始招实习生了。在我看来，找实习就是校招的开始，而不是说等到6,7月份的秋招。为什么这么说？因为 BAT 今年校招的趋势就是优先招实习生，其次是内推，正式校招进来的很少。主要原因就是校招名额少了，以前可能正式校招会招不少人，但以后的趋势就是实习生，内推，想要正式校招进来会很难。所以说，能进 BAT 实习基本上一只脚就进 BAT 了，即使不能转正，有 BAT 实习经历也很好找工作。</p>
+
+<p>说这么多无非就是强调准备实习面试的重要性，千万不要以为实习水水，等到秋招再努力，到时候就晚了。所以我的第一条经验就是<strong>重视找实习</strong></p>
+
+<h2 id="toc_4">打好基础</h2>
+
+<p>打好基础，怎么强调都不过分。面试三方看运气，七分看实力。基础起码占你实力的百分之五十。什么是基础？就是计算机的专业课。</p>
+
+<p>大部分应届生是没有什么牛逼的项目经历的（包括我），所以大部分面试官对于校招最看重的就是基础，经常会问到就是快排，画 UML 图等。不要以为这些很简单，事实上一个快排就能刷了很多人。</p>
+
+<p>专业课包括：</p>
+
+<ol>
+<li>算法与数据结构</li>
+<li>操作系统</li>
+<li>编译原理</li>
+<li>计算机组成</li>
+<li>C/C++</li>
+<li>计算机网络</li>
+<li>设计模式</li>
+<li>UML</li>
+<li>软件测试</li>
+<li>IT 项目管理</li>
+</ol>
+
+<p>软件测试和 IT 项目管理偏工程应用，对面试帮助不大，在学的时候也觉得没什么用，但其实真正工作了才知道它们的重要性。</p>
+
+<p>上面每一门课的知识太多，就算是我也记不了那么多。但是面试就像考试，总有重点可以划。我的经验是去网上搜一下面经，多篇面经综合起来就可以看出哪些知识是重点。当然，考试只看重点也很难考高分，最好的方法自然是平时多努力，临考前抱抱佛脚。</p>
+
+<p>我就不重复划重点了，网上已经有很多面经了，基础打好了，再根据实际情况重点突破，例如安卓要看看安卓源码，Java 要看看 JDK 源码等。</p>
+
+<h3 id="toc_5">多做项目</h3>
+
+<p>学习编程的捷径只有一个：就是<strong>多动手写代码</strong>。看一千遍《算法导论》，不如动手做一道课后题。其实道理很简单，但是做起来很难，除非你自己对编程有兴趣，否则做项目对你来说就跟做作业一样痛苦。但是如果想要找一份编程的工作，总是要付出的。付出不是说看看书，背背题就行，而是要动手写代码，学以致用，否则永远都是纸上谈兵，别人一问就露陷了。</p>
+
+<p>做项目也不是说随便水水，做出一个能用的东西就好，而是要精益求精，想想怎么能做得更好。很多时候面试官不按套路出牌问你一些实际问题，其实就是想考验你平时做项目有没有思考更多东西，而不是满足于实现功能。这些东西来源于平时的积累，所以平时做项目认真点，面试的时候底气就足一点。</p>
+
+<p>项目的来源可以是课程的大作业，自己想做的东西（像我就做过刷课爬虫），老师的项目，学校申报的项目。只要你想做，总是有东西可以实践的。不要羡慕别人跟了某个牛逼的老师做项目，别人主动去找机会了，你自己不去争取，能怪谁？所以，找项目做一定要主动。</p>
+
+<h3 id="toc_6">面试心态</h3>
+
+<p>心态对于面试表现是很重要的，第一次面试肯定会紧张，这种东西需要通过多参加面试解决。其次，准备越充分，面试就越不紧张，因为他问的东西你都能答上来，自然就不会紧张了。最后，对于失败要有乐观的态度，我第一次内推阿里失败的时候，内推我的师兄跟我说：<strong>面试过不了只是说明这个岗位不适合你，并不是说你的能力不行</strong>。所以要用良好的心态去对待面试，面试有运气的成分，此处不留爷，自有留爷处。让自己随时做好准备，总能找到合适的工作。</p>
+
+<p><strong>在没有坑之前，先让自己成为萝卜。</strong></p>
+
+<h2 id="toc_7">总结</h2>
+
+<p>其实要找一份合适的工作是不容易的，但是让自己做好准备，从心里重视找实习，平时打好基础，多做项目多思考，在面试过程中调整心态，好工作就是水到渠成的事情。最后推荐我写的一篇文章：<a href="http://blog.xiaohansong.com/2016/01/16/kownledge-Management/">程序员的知识管理</a>，希望对大家整理自己的知识有所帮助。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[图解 Paxos 一致性协议]]></title>
+    <link href="https://blog.xiaohansong.com/Paxos.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/Paxos.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>Paxos 一致性协议可以说是一致性协议研究的起点，也以难以理解闻名。其实协议本身并没有多难理解，它的难理解性主要体现在：为何如此设计协议以及如何证明其正确性。本文尝试通过流程图来说明协议的内容以及基本应用过程，不涉及如何证明其正确性。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">基本概念</h2>
+
+<p>Paxos 可以分为两种：</p>
+
+<ul>
+<li><strong>Single-Decree Paxos</strong>：决策单个 Value</li>
+<li><strong>Multi-Paxos</strong>：连续决策多个 Value，并且保证每个节点上的顺序完全一致，多 Paxos 往往是同事运行多个单 Paxos 协议共同执行的结果。</li>
+</ul>
+
+<p>本文只关注单 Paxos 的原理，理解了单 Paxos，多 Paxos 也就不难理解了。</p>
+
+<h3 id="toc_2">Paxos 协议中的三种角色</h3>
+
+<ul>
+<li><strong>倡议者（Proposer）</strong>：倡议者可以提出提议（数值或者操作命令）以供投票表决</li>
+<li><strong>接受者（Acceptor）</strong>：接受者可以对倡议者提出的提议进行投票表决，提议有超半数的接受者投票即被选中</li>
+<li><strong>学习者（Learner）</strong>：学习者无投票权，只是从接受者那里获知哪个提议被选中</li>
+</ul>
+
+<p>在协议中，每个节点可以同时扮演以上多个角色。</p>
+
+<h3 id="toc_3">Paxos 的特点</h3>
+
+<ul>
+<li>一个或多个节点可以提出提议</li>
+<li>系统必须针对所有提案中的某个提案达成一致（超过半数的接受者选中）</li>
+<li>最多只能对一个确定的提议达成一致</li>
+<li>只要超半数的节点存活且可互相通信，整个系统一定能达成一致状态，即选择一个确定的提议</li>
+</ul>
+
+<h2 id="toc_4">协议图示</h2>
+
+<p><img src="media/15473672637058/15473895401761.png" alt=""/></p>
+
+<p>通过上面的流程，如果有多个节点同时提出各自的提议，Paxos 就可以保证从中选出一个唯一确定的值，保证分布式系统的一致性。</p>
+
+<h2 id="toc_5">实例</h2>
+
+<p>下面我们通过例子来理解 Paxos 的实际应用过程。</p>
+
+<p>假设现在有五个节点的分布式系统，此时 A 节点打算提议 X 值，E 节点打算提议 Y 值，其他节点没有提议。<br/>
+<img src="media/15473672637058/15473895515326.png" alt=""/></p>
+
+<p>假设现在 A 节点广播它的提议（也会发送给自己），由于网络延迟的原因，只有 A，B，C 节点收到了。注意即使 A，E 节点的提议同时到达某个节点，它也必然有个先后处理的顺序，这里的“同时”不是真正意义上的“同时”。<br/>
+<img src="media/15473672637058/15473895640703.png" alt=""/></p>
+
+<p>A，B，C接收提议之后，由于这是第一个它们接收到的提议，acceptedProposal 和 acceptedValue 都为空。<br/>
+<img src="media/15473672637058/15473895964111.png" alt=""/></p>
+
+<p>由于 A 节点已经收到超半数的节点响应，且返回的 acceptedValue 都为空，也就是说它可以用 X 作为提议的值来发生 Accept 请求，A，B，C接收到请求之后，将 acceptedValue 更新为 X。<br/>
+<img src="media/15473672637058/15473896095790.png" alt=""/></p>
+
+<p>A，B，C 会发生 minProposal 给 A，A 检查发现没有大于 1 的 minProposal 出现，此时 X 已经被选中。等等，我们是不是忘了D，E节点？它们的 acceptedValue 并不是 X，系统还处于不一致状态。至此，Paxos 过程还没有结束，我们继续看。<br/>
+<img src="media/15473672637058/15473896211872.png" alt=""/></p>
+
+<p>此时 E 节点选择 Proposal ID 为 2 发送 Prepare 请求，结果就和上面不一样了，因为 C 节点已经接受了 A 节点的提议，它不会三心二意，所以就告诉 E 节点它的选择，E 节点也很绅士，既然 C 选择了 A 的提议，那我也选它吧。于是，E 发起 Accept 请求，使用 X 作为提议值，至此，整个分布式系统达成了一致，大家都选择了 X。<br/>
+<img src="media/15473672637058/15473896318727.png" alt=""/></p>
+
+<p>上面是 Paxos 的一个简单应用过程，其他复杂的场景也可以根据流程图慢慢推导，这里只是抛砖引玉。</p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Zookeeper ZAB 协议分析]]></title>
+    <link href="https://blog.xiaohansong.com/zab.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/zab.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>ZAB 协议是为分布式协调服务 ZooKeeper 专门设计的一种支持崩溃恢复的原子广播协议。在 ZooKeeper 中，主要依赖 ZAB 协议来实现分布式数据一致性，基于该协议，ZooKeeper 实现了一种主备模式的系统架构来保持集群中各个副本之间的数据一致性。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">Atomic broadcast protocol</h2>
+
+<p>ZAB 是 Zookeeper 原子广播协议的简称，下面我们来讨论协议的内容，注意：理论与实现是有区别的，如果你对协议的理论不感兴趣，可以直接跳过看实现。</p>
+
+<h3 id="toc_2">问题的提出</h3>
+
+<p>Zookeeper 客户端会随机连接到 Zookeeper 集群的一个节点，如果是读请求，就直接从当前节点中读取数据；如果是写请求，那么节点就会向 leader 提交事务，leader 会广播事务，只要有超过半数节点写入成功，该写请求就会被提交（类 2PC 协议）。</p>
+
+<p>那么问题来了：</p>
+
+<ul>
+<li>主从架构下，leader 崩溃，数据一致性怎么保证？</li>
+<li>选举 leader 的时候，整个集群无法处理写请求的，如何快速进行 leader 选举？</li>
+</ul>
+
+<p>带着这两个问题，我们来看看 ZAB 协议是如何解决的。</p>
+
+<h3 id="toc_3">ZAB 的四个阶段</h3>
+
+<h4 id="toc_4">术语解释</h4>
+
+<ul>
+<li><strong>quorum</strong>：集群中超过半数的节点集合</li>
+</ul>
+
+<p>ZAB 中的节点有三种状态</p>
+
+<ul>
+<li><strong>following</strong>：当前节点是跟随者，服从 leader 节点的命令</li>
+<li><strong>leading</strong>：当前节点是 leader，负责协调事务</li>
+<li><strong>election/looking</strong>：节点处于选举状态</li>
+</ul>
+
+<p><em>代码实现中多了一种：observing 状态，这是 Zookeeper 引入 Observer 之后加入的，Observer 不参与选举，是只读节点，跟 ZAB 协议没有关系</em></p>
+
+<p>节点的持久状态</p>
+
+<ul>
+<li><strong>history</strong>：当前节点接收到事务提议的 log</li>
+<li><strong>acceptedEpoch</strong>：follower 已经接受的 leader 更改年号的 NEWEPOCH 提议</li>
+<li><strong>currentEpoch</strong>：当前所处的年代</li>
+<li><strong>lastZxid</strong>：history 中最近接收到的提议的 zxid （最大的）</li>
+</ul>
+
+<blockquote>
+<p>在 ZAB 协议的事务编号 Zxid 设计中，Zxid 是一个 64 位的数字，其中低 32 位是一个简单的单调递增的计数器，针对客户端每一个事务请求，计数器加 1；而高 32 位则代表 Leader 周期 epoch 的编号，每个当选产生一个新的 Leader 服务器，就会从这个 Leader 服务器上取出其本地日志中最大事务的ZXID，并从中读取 epoch 值，然后加 1，以此作为新的 epoch，并将低 32 位从 0 开始计数。</p>
+
+<p>epoch：可以理解为当前集群所处的年代或者周期，每个 leader 就像皇帝，都有自己的年号，所以每次改朝换代，leader 变更之后，都会在前一个年代的基础上加 1。这样就算旧的 leader 崩溃恢复之后，也没有人听他的了，因为 follower 只听从当前年代的 leader 的命令。*</p>
+</blockquote>
+
+<h4 id="toc_5">Phase 0: Leader election（选举阶段）</h4>
+
+<p>节点在一开始都处于选举阶段，只要有一个节点得到超半数节点的票数，它就可以当选准 leader。只有到达 Phase 3 准 leader 才会成为真正的 leader。这一阶段的目的是就是为了选出一个准 leader，然后进入下一个阶段。</p>
+
+<p>协议并没有规定详细的选举算法，后面我们会提到实现中使用的 Fast Leader Election。</p>
+
+<h4 id="toc_6">Phase 1: Discovery（发现阶段）</h4>
+
+<p>在这个阶段，followers 跟准 leader 进行通信，同步 followers 最近接收的事务提议。这个一阶段的主要目的是发现当前大多数节点接收的最新提议，并且准 leader 生成新的 epoch，让 followers 接受，更新它们的 acceptedEpoch<br/>
+<img src="media/15473672636674/15473897584862.png" alt=""/></p>
+
+<p>一个 follower 只会连接一个 leader，如果有一个节点 f 认为另一个 follower p 是 leader，f 在尝试连接 p 时会被拒绝，f 被拒绝之后，就会进入 Phase 0。</p>
+
+<h4 id="toc_7">Phase 2: Synchronization（同步阶段）</h4>
+
+<p>同步阶段主要是利用 leader 前一阶段获得的最新提议历史，同步集群中所有的副本。只有当 quorum 都同步完成，准 leader 才会成为真正的 leader。follower 只会接收 zxid 比自己的 lastZxid 大的提议。<br/>
+<img src="media/15473672636674/15473897747901.png" alt=""/></p>
+
+<h4 id="toc_8">Phase 3: Broadcast（广播阶段）</h4>
+
+<p>到了这个阶段，Zookeeper 集群才能正式对外提供事务服务，并且 leader 可以进行消息广播。同时如果有新的节点加入，还需要对新节点进行同步。<br/>
+<img src="media/15473672636674/15473897855814.png" alt=""/></p>
+
+<p>值得注意的是，ZAB 提交事务并不像 2PC 一样需要全部 follower 都 ACK，只需要得到 quorum （超过半数的节点）的 ACK 就可以了。</p>
+
+<h2 id="toc_9">协议实现</h2>
+
+<p>协议的 Java 版本实现跟上面的定义有些不同，选举阶段使用的是 Fast Leader Election（FLE），它包含了 Phase 1 的发现职责。因为 FLE 会选举拥有最新提议历史的节点作为 leader，这样就省去了发现最新提议的步骤。实际的实现将 Phase 1 和 Phase 2 合并为 Recovery Phase（恢复阶段）。所以，ZAB 的实现只有三个阶段：</p>
+
+<ul>
+<li><strong>Fast Leader Election</strong></li>
+<li><strong>Recovery Phase</strong></li>
+<li><strong>Broadcast Phase</strong></li>
+</ul>
+
+<h3 id="toc_10">Fast Leader Election</h3>
+
+<p>前面提到 FLE 会选举拥有最新提议历史（lastZixd最大）的节点作为 leader，这样就省去了发现最新提议的步骤。这是基于拥有最新提议的节点也有最新提交记录的前提。</p>
+
+<h4 id="toc_11">成为 leader 的条件</h4>
+
+<ol>
+<li>选<code>epoch</code>最大的</li>
+<li><code>epoch</code>相等，选 zxid 最大的</li>
+<li><code>epoch</code>和<code>zxid</code>都相等，选择<code>server id</code>最大的（就是我们配置<code>zoo.cfg</code>中的<code>myid</code>）</li>
+</ol>
+
+<p>节点在选举开始都默认投票给自己，当接收其他节点的选票时，会根据上面的条件更改自己的选票并重新发送选票给其他节点，当有一个节点的得票超过半数，该节点会设置自己的状态为 leading，其他节点会设置自己的状态为 following。</p>
+
+<h4 id="toc_12">选举过程</h4>
+
+<p><img src="media/15473672636674/15473897991049.png" alt=""/></p>
+
+<h3 id="toc_13">Recovery Phase  （恢复阶段）</h3>
+
+<p>这一阶段 follower 发送它们的 lastZixd 给 leader，leader 根据 lastZixd 决定如何同步数据。这里的实现跟前面 Phase 2 有所不同：Follower 收到 TRUNC 指令会中止 L.lastCommittedZxid 之后的提议，收到 DIFF 指令会接收新的提议。</p>
+
+<blockquote>
+<p>history.lastCommittedZxid：最近被提交的提议的 zxid<br/>
+history:oldThreshold：被认为已经太旧的已提交提议的 zxid</p>
+</blockquote>
+
+<p><img src="media/15473672636674/15473898081005.png" alt=""/></p>
+
+<h2 id="toc_14">总结</h2>
+
+<p>经过上面的分析，我们可以来回答开始提到的两个问题</p>
+
+<ul>
+<li><p>主从架构下，leader 崩溃，数据一致性怎么保证？</p>
+<p>leader 崩溃之后，集群会选出新的 leader，然后就会进入恢复阶段，新的 leader 具有所有已经提交的提议，因此它会保证让 followers 同步已提交的提议，丢弃未提交的提议（以 leader 的记录为准），这就保证了整个集群的数据一致性。</p></li>
+<li><p>选举 leader 的时候，整个集群无法处理写请求的，如何快速进行 leader 选举？</p>
+<p>这是通过 Fast Leader Election 实现的，leader 的选举只需要超过半数的节点投票即可，这样不需要等待所有节点的选票，能够尽早选出 leader。</p></li>
+</ul>
+
+<p>这篇文章是根据我对 ZAB 协议的理解写成的，如果觉得有些细节没有讲清楚，可以看后面的参考资料，我主要是参考这篇<a href="http://www.tcs.hut.fi/Studies/T-79.5001/reports/2012-deSouzaMedeiros.pdf&amp;usg=AFQjCNG8TKh-JN5Csqoditj7hlOo5nbR6g">论文</a>的。</p>
+
+<p><em>参考资料</em><br/>
+<a href="http://www.tcs.hut.fi/Studies/T-79.5001/reports/2012-deSouzaMedeiros.pdf&amp;usg=AFQjCNG8TKh-JN5Csqoditj7hlOo5nbR6g">ZooKeeper’s atomic broadcast protocol:Theory and practice</a></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[ZooKeeper Watcher 和 AsyncCallback 的区别与实现]]></title>
+    <link href="https://blog.xiaohansong.com/zookeeper-watch-async.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/zookeeper-watch-async.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>初学 Zookeeper 会发现客户端有两种回调方式： Watcher 和 AsyncCallback，而 Zookeeper 的使用是离不开这两种方式的，搞清楚它们之间的区别与实现显得尤为重要。本文将围绕下面几个方面展开</p>
+
+<ul>
+<li>Watcher 和 AsyncCallback 的区别</li>
+<li>Watcher 的回调实现</li>
+<li>AsyncCallback 的回调实现</li>
+<li>IO 与事件处理</li>
+</ul>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">Watcher 和 AsyncCallback 的区别</h2>
+
+<p>我们先通过一个例子来感受一下：</p>
+
+<pre><code class="language-text">zooKeeper.getData(root, new Watcher() {
+            public void process(WatchedEvent event) {
+
+            }
+        }, new AsyncCallback.DataCallback() {
+            public void processResult(int rc, String path, Object ctx, byte[] data, Stat stat) {
+
+            }
+        }, null);
+</code></pre>
+
+<p>可以看到，<code>getData</code>方法可以同时设置两个回调：Watcher 和 AsyncCallback，同样是回调，它们的区别是什么呢？要解决这个问题，我们就得从这两个接口的功能入手。</p>
+
+<ul>
+<li><code>Watcher</code>：<code>Watcher</code>是用于监听节点，session 状态的，比如<code>getData</code>对数据节点<code>a</code>设置了<code>watcher</code>，那么当<code>a</code>的数据内容发生改变时，客户端会收到<code>NodeDataChanged</code>通知，然后进行<code>watcher</code>的回调。</li>
+<li><code>AsyncCallback</code>:<code>AsyncCallback</code>是在以异步方式使用 ZooKeeper API 时，用于处理返回结果的。例如：<code>getData</code>同步调用的版本是：<code>byte[] getData(String path, boolean watch,Stat stat)</code>，异步调用的版本是：<code>void getData(String path,Watcher watcher,AsyncCallback.DataCallback cb,Object ctx)</code>，可以看到，前者是直接返回获取的结果，后者是通过<code>AsyncCallback</code>回调处理结果的。</li>
+</ul>
+
+<h2 id="toc_2">Watcher</h2>
+
+<p>Watcher 主要是通过<code>ClientWatchManager</code>进行管理的。下面是 Watcher 相关类图</p>
+
+<p><img src="media/15473672637206/15473893810555.png" alt=""/></p>
+
+<p>添加 Watcher 的流程如下：<br/>
+<img src="media/15473672637206/15473893928614.png" alt=""/></p>
+
+<h3 id="toc_3">Watcher 的类型</h3>
+
+<p><code>ClientWatchManager</code>中有四种<code>Watcher</code></p>
+
+<ul>
+<li><code>defaultWatcher</code>：创建<code>Zookeeper</code>连接时传入的<code>Watcher</code>，用于监听 session 状态</li>
+<li><code>dataWatches</code>：存放<code>getData</code>传入的<code>Watcher</code></li>
+<li><code>existWatches</code>：存放<code>exists</code>传入的<code>Watcher</code>，如果节点已存在，则<code>Watcher</code>会被添加到<code>dataWatches</code></li>
+<li><code>childWatches</code>：存放<code>getChildren</code>传入的<code>Watcher</code></li>
+</ul>
+
+<p>从代码上可以发现，监听器是存在<code>HashMap</code>中的，<code>key</code>是节点名称<code>path</code>，<code>value</code>是<code>Set&lt;Watcher&gt;</code></p>
+
+<pre><code class="language-text">private final Map&lt;String, Set&lt;Watcher&gt;&gt; dataWatches =
+        new HashMap&lt;String, Set&lt;Watcher&gt;&gt;();
+private final Map&lt;String, Set&lt;Watcher&gt;&gt; existWatches =
+        new HashMap&lt;String, Set&lt;Watcher&gt;&gt;();
+private final Map&lt;String, Set&lt;Watcher&gt;&gt; childWatches =
+        new HashMap&lt;String, Set&lt;Watcher&gt;&gt;();
+
+private volatile Watcher defaultWatcher;
+</code></pre>
+
+<h3 id="toc_4">通知的状态类型与事件类型</h3>
+
+<p>在<code>Watcher</code>接口中，已经定义了所有的状态类型和事件类型</p>
+
+<ul>
+<li><p>KeeperState.Disconnected(0)</p>
+<p>此时客户端处于断开连接状态，和ZK集群都没有建立连接。</p>
+<ul>
+<li><p>EventType.None(-1)</p>
+<p>触发条件：一般是在与服务器断开连接的时候，客户端会收到这个事件。</p></li>
+</ul></li>
+<li><p>KeeperState. SyncConnected(3)</p>
+<p>此时客户端处于连接状态</p>
+<ul>
+<li><p>EventType.None(-1)</p>
+<p>触发条件：客户端与服务器成功建立会话之后，会收到这个通知。</p></li>
+<li><p>EventType. NodeCreated (1)</p>
+<p>触发条件：所关注的节点被创建。</p></li>
+<li><p>EventType. NodeDeleted (2)</p>
+<p>触发条件：所关注的节点被删除。</p></li>
+<li><p>EventType. NodeDataChanged (3)</p>
+<p>触发条件：所关注的节点的内容有更新。注意，这个地方说的内容是指数据的版本<code>号dataVersion</code>。因此，即使使用相同的数据内容来更新，还是会收到这个事件通知的。无论如何，调用了更新接口，就一定会更新<code>dataVersion</code>的。</p></li>
+<li><p>EventType. NodeChildrenChanged (4)</p>
+<p>触发条件：所关注的节点的子节点有变化。这里说的变化是指子节点的个数和组成，具体到子节点内容的变化是不会通知的。</p></li>
+</ul></li>
+<li><p>KeeperState. AuthFailed(4)</p>
+<p>认证失败</p>
+<ul>
+<li>EventType.None(-1)</li>
+</ul></li>
+<li><p>KeeperState. Expired(-112)</p>
+<p>session 超时</p>
+<ul>
+<li>EventType.None(-1)</li>
+</ul></li>
+</ul>
+
+<h3 id="toc_5">materialize 方法</h3>
+
+<p><code>ClientWatchManager</code>只有一个方法，那就是<code>materialize</code>，它根据事件类型<code>type</code>和<code>path</code>返回监听该节点的特定类型的<code>Watcher</code>。</p>
+
+<pre><code class="language-text">public Set&lt;Watcher&gt; materialize(Watcher.Event.KeeperState state,
+    Watcher.Event.EventType type, String path);
+</code></pre>
+
+<p>核心逻辑如下：</p>
+
+<ol>
+<li><code>type == None</code>:返回所有<code>Watcher</code>，也就是说所有的<code>Watcher</code>都会被触发。如果<code>disableAutoWatchReset == true</code>且当前<code>state != SyncConnected</code>，那么还会清空<code>Watcher</code>，意味着移除所有在节点上的<code>Watcher</code>。</li>
+<li><code>type == NodeDataChanged | NodeCreated</code>:返回监听<code>path</code>节点的<code>dataWatches &amp; existWatches</code></li>
+<li><code>type == NodeChildrenChanged</code>:返回监听<code>path</code>节点的<code>childWatches</code></li>
+<li><code>type == NodeDeleted</code>:返回监听<code>path</code>节点的<code>dataWatches | childWatches</code></li>
+</ol>
+
+<p>每次返回都会从<code>HashMap</code>中移除节点对应的<code>Watcher</code>，例如：<code>addTo(dataWatches.remove(clientPath), result);</code>，这就是为什么<code>Watcher</code>是一次性的原因（<code>defaultWatcher</code>除外）。值得注意的是，由于使用的是<code>HashSet</code>存储<code>Watcher</code>，重复添加同一个实例的<code>Watcher</code>也只会被触发一次。</p>
+
+<h2 id="toc_6">AsyncCallback</h2>
+
+<p>Zookeeper 的<code>exists</code>,<code>getData</code>,<code>getChildren</code>方法都有异步的版本，它们与同步方法的区别仅仅在于是否等待响应，底层发送都是通过<code>sendThread</code>异步发送的。下面我们用一幅图来说明：</p>
+
+<p><img src="media/15473672637206/15473894174173.jpg" alt=""/></p>
+
+<p>上面的图展示了同步/异步调用<code>getData</code>的流程，其他方法也是类似的。</p>
+
+<h2 id="toc_7">IO 与事件处理</h2>
+
+<p>Zookeeper 客户端会启动两个常驻线程</p>
+
+<ul>
+<li><code>SendThread</code>：负责 IO 操作，包括发送，接受响应，发送 ping 等。</li>
+<li><code>EventThread</code>：负责处理事件，执行回调函数。</li>
+</ul>
+
+<p><img src="media/15473672637206/15473894283077.jpg" alt=""/></p>
+
+<h3 id="toc_8">readResponse</h3>
+
+<p><code>readResponse</code>是<code>SendThread</code>处理响应的核心函数，核心逻辑如下：</p>
+
+<ol>
+<li>接受服务器的响应，并反序列化出<code>ReplyHeader</code>： 有一个单独的线程<code>SendThread</code>，负责接收服务器端的响应。假设接受到的服务器传递过来的字节流是<code>incomingBuffer</code>，那么就将这个<code>incomingBuffer</code>反序列化为<code>ReplyHeader</code>。</li>
+<li><p>判断响应类型：判断<code>ReplyHeader</code>是<code>Watcher</code>响应还是<code>AsyncCallback</code>响应：<code>ReplyHeader.getXid()</code>存储了响应类型。</p>
+<ol>
+<li>如果是<code>Watcher</code>类型响应：从<code>ReplyHeader</code>中创建<code>WatchedEvent</code>，<code>WatchedEvent</code>里面存储了节点的路径，然后去<code>WatcherManager</code>中找到和这个节点相关联的所有<code>Watcher</code>，将他们写入到<code>EventThread</code>的<code>waitingEvents</code>中。</li>
+<li>如果是<code>AsyncCallback</code>类型响应：从<code>ReplyHeader</code>中读取<code>response</code>，这个<code>response</code>描述了是<code>Exists，setData，getData，getChildren，create.....</code>中的哪一个异步回调。从<code>pendingQueue</code>中拿到<code>Packet</code>，<code>Packet</code>中的<code>cb</code>存储了<code>AsyncCallback</code>，也就是异步 API 的结果回调。最后将<code>Packet</code>写入到<code>EventThread</code>的<code>waitingEvents</code>中。</li>
+</ol></li>
+</ol>
+
+<h3 id="toc_9">processEvent</h3>
+
+<p><code>processEvent</code>是<code>EventThread</code>处理事件核心函数，核心逻辑如下：</p>
+
+<ol>
+<li>如果<code>event instanceof WatcherSetEventPair</code>，取出<code>pair</code>中的<code>Watchers</code>，逐个调用<code>watcher.process(pair.event)</code></li>
+<li>否则<code>event</code>为<code>AsyncCallback</code>，根据<code>p.response</code>判断为哪种响应类型，执行响应的回调<code>processResult</code>。</li>
+</ol>
+
+<p>可见，<code>Watcher</code>和<code>AsyncCallback</code>都是由<code>EventThread</code>处理的，通过<code>processEvent</code>进行区分处理。</p>
+
+<h2 id="toc_10">总结</h2>
+
+<p>Zookeeper 客户端中<code>Watcher</code>和<code>AsyncCallback</code>都是异步回调的方式，但它们回调的时机是不一样的，前者是由服务器发送事件触发客户端回调，后者是在执行了请求后得到响应后客户端主动触发的。它们的共同点在于都需要在获取了服务器响应之后，由<code>SendThread</code>写入<code>EventThread</code>的<code>waitingEvents</code>中，然后由<code>EventThread</code>逐个从事件队列中获取并处理。</p>
+
+<p><em>参考资料</em><br/>
+<a href="http://www.cnblogs.com/francisYoung/p/5225703.html">ZooKeeper个人笔记客户端watcher和AsycCallback回调</a><br/>
+<a href="http://nileader.blog.51cto.com/1381108/954670">【ZooKeeper Notes 13】ZooKeeper Watcher的事件通知类型</a></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[深入分析 ThreadLocal 内存泄漏问题]]></title>
+    <link href="https://blog.xiaohansong.com/ThreadLocal-memory-leak.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/ThreadLocal-memory-leak.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p><code>ThreadLocal</code> 的作用是提供线程内的局部变量，这种变量在线程的生命周期内起作用，减少同一个线程内多个函数或者组件之间一些公共变量的传递的复杂度。但是如果滥用 <code>ThreadLocal</code>，就可能会导致内存泄漏。下面，我们将围绕三个方面来分析 <code>ThreadLocal</code> 内存泄漏的问题</p>
+
+<ul>
+<li><code>ThreadLocal</code> 实现原理</li>
+<li><code>ThreadLocal</code>为什么会内存泄漏</li>
+<li><code>ThreadLocal</code> 最佳实践</li>
+</ul>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">ThreadLocal 实现原理</h2>
+
+<p><img src="media/15473672636979/15473735704801.jpg" alt=""/></p>
+
+<p><code>ThreadLocal</code>的实现是这样的：每个<code>Thread</code> 维护一个 <code>ThreadLocalMap</code> 映射表，这个映射表的 <code>key</code> 是 <code>ThreadLocal</code> 实例本身，<code>value</code> 是真正需要存储的 <code>Object</code>。</p>
+
+<p>也就是说 <code>ThreadLocal</code> 本身并不存储值，它只是作为一个 <code>key</code> 来让线程从 <code>ThreadLocalMap</code> 获取 <code>value</code>。值得注意的是图中的虚线，表示 <code>ThreadLocalMap</code> 是使用 <code>ThreadLocal</code> 的弱引用作为 <code>Key</code> 的，弱引用的对象在 GC 时会被回收。</p>
+
+<h2 id="toc_2"><code>ThreadLocal</code>为什么会内存泄漏</h2>
+
+<p><code>ThreadLocalMap</code>使用<code>ThreadLocal</code>的弱引用作为<code>key</code>，如果一个<code>ThreadLocal</code>没有外部强引用来引用它，那么系统 GC 的时候，这个<code>ThreadLocal</code>势必会被回收，这样一来，<code>ThreadLocalMap</code>中就会出现<code>key</code>为<code>null</code>的<code>Entry</code>，就没有办法访问这些<code>key</code>为<code>null</code>的<code>Entry</code>的<code>value</code>，如果当前线程再迟迟不结束的话，这些<code>key</code>为<code>null</code>的<code>Entry</code>的<code>value</code>就会一直存在一条强引用链：<code>Thread Ref -&gt; Thread -&gt; ThreaLocalMap -&gt; Entry -&gt; value</code>永远无法回收，造成内存泄漏。</p>
+
+<p>其实，<code>ThreadLocalMap</code>的设计中已经考虑到这种情况，也加上了一些防护措施：在<code>ThreadLocal</code>的<code>get()</code>,<code>set()</code>,<code>remove()</code>的时候都会清除线程<code>ThreadLocalMap</code>里所有<code>key</code>为<code>null</code>的<code>value</code>。</p>
+
+<p>但是这些被动的预防措施并不能保证不会内存泄漏：</p>
+
+<ul>
+<li>使用<code>static</code>的<code>ThreadLocal</code>，延长了<code>ThreadLocal</code>的生命周期，可能导致的内存泄漏（参考<a href="https://blog.xiaohansong.com/ThreadLocal-leak-analyze.html">ThreadLocal 内存泄露的实例分析</a>）。</li>
+<li>分配使用了<code>ThreadLocal</code>又不再调用<code>get()</code>,<code>set()</code>,<code>remove()</code>方法，那么就会导致内存泄漏。</li>
+</ul>
+
+<h3 id="toc_3">为什么使用弱引用</h3>
+
+<p>从表面上看内存泄漏的根源在于使用了弱引用。网上的文章大多着重分析<code>ThreadLocal</code>使用了弱引用会导致内存泄漏，但是另一个问题也同样值得思考：为什么使用弱引用而不是强引用？</p>
+
+<p>我们先来看看官方文档的说法：</p>
+
+<blockquote>
+<p>To help deal with very large and long-lived usages, the hash table entries use WeakReferences for keys.<br/>
+为了应对非常大和长时间的用途，哈希表使用弱引用的 key。</p>
+</blockquote>
+
+<p>下面我们分两种情况讨论：</p>
+
+<ul>
+<li><strong>key 使用强引用</strong>：引用的<code>ThreadLocal</code>的对象被回收了，但是<code>ThreadLocalMap</code>还持有<code>ThreadLocal</code>的强引用，如果没有手动删除，<code>ThreadLocal</code>不会被回收，导致<code>Entry</code>内存泄漏。</li>
+<li><strong>key 使用弱引用</strong>：引用的<code>ThreadLocal</code>的对象被回收了，由于<code>ThreadLocalMap</code>持有<code>ThreadLocal</code>的弱引用，即使没有手动删除，<code>ThreadLocal</code>也会被回收。<code>value</code>在下一次<code>ThreadLocalMap</code>调用<code>set</code>,<code>get</code>，<code>remove</code>的时候会被清除。</li>
+</ul>
+
+<p>比较两种情况，我们可以发现：由于<code>ThreadLocalMap</code>的生命周期跟<code>Thread</code>一样长，如果都没有手动删除对应<code>key</code>，都会导致内存泄漏，但是使用弱引用可以多一层保障：<strong>弱引用<code>ThreadLocal</code>不会内存泄漏，对应的<code>value</code>在下一次<code>ThreadLocalMap</code>调用<code>set</code>,<code>get</code>,<code>remove</code>的时候会被清除</strong>。</p>
+
+<p>因此，<code>ThreadLocal</code>内存泄漏的根源是：由于<code>ThreadLocalMap</code>的生命周期跟<code>Thread</code>一样长，如果没有手动删除对应<code>key</code>就会导致内存泄漏，而不是因为弱引用。</p>
+
+<h2 id="toc_4">ThreadLocal 最佳实践</h2>
+
+<p>综合上面的分析，我们可以理解<code>ThreadLocal</code>内存泄漏的前因后果，那么怎么避免内存泄漏呢？</p>
+
+<ul>
+<li>每次使用完<code>ThreadLocal</code>，都调用它的<code>remove()</code>方法，清除数据。</li>
+</ul>
+
+<p>在使用线程池的情况下，没有及时清理<code>ThreadLocal</code>，不仅是内存泄漏的问题，更严重的是可能导致业务逻辑出现问题。所以，使用<code>ThreadLocal</code>就跟加锁完要解锁一样，用完就清理。</p>
+
+<p><u>参考文章</u><br/>
+<a href="http://qifuguang.me/2015/09/02/%5BJava%E5%B9%B6%E5%8F%91%E5%8C%85%E5%AD%A6%E4%B9%A0%E4%B8%83%5D%E8%A7%A3%E5%AF%86ThreadLocal/">Java并发包学习七 解密ThreadLocal</a><br/>
+<a href="http://www.cnblogs.com/onlywujun/p/3524675.html">ThreadLocal可能引起的内存泄露</a></p>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[ThreadLocal 内存泄露的实例分析]]></title>
+    <link href="https://blog.xiaohansong.com/ThreadLocal-leak-analyze.html"/>
+    <updated>2019-01-13T16:14:23+08:00</updated>
+    <id>https://blog.xiaohansong.com/ThreadLocal-leak-analyze.html</id>
+    <content type="html"><![CDATA[
+<h2 id="toc_0">前言</h2>
+
+<p>之前写了一篇<a href="https://blog.xiaohansong.com/ThreadLocal-memory-leak.html">深入分析 ThreadLocal 内存泄漏问题</a>是从理论上分析<code>ThreadLocal</code>的内存泄漏问题，这一篇文章我们来分析一下实际的内存泄漏案例。分析问题的过程比结果更重要，理论结合实际才能彻底分析出内存泄漏的原因。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">案例与分析</h2>
+
+<h3 id="toc_2">问题背景</h3>
+
+<p>在 Tomcat 中，下面的代码都在 webapp 内，会导致<code>WebappClassLoader</code>泄漏，无法被回收。</p>
+
+<pre><code class="language-text">public class MyCounter {
+        private int count = 0;
+
+        public void increment() {
+                count++;
+        }
+
+        public int getCount() {
+                return count;
+        }
+}
+
+public class MyThreadLocal extends ThreadLocal&lt;MyCounter&gt; {
+}
+
+public class LeakingServlet extends HttpServlet {
+        private static MyThreadLocal myThreadLocal = new MyThreadLocal();
+
+        protected void doGet(HttpServletRequest request,
+                        HttpServletResponse response) throws ServletException, IOException {
+
+                MyCounter counter = myThreadLocal.get();
+                if (counter == null) {
+                        counter = new MyCounter();
+                        myThreadLocal.set(counter);
+                }
+
+                response.getWriter().println(
+                                &quot;The current thread served this servlet &quot; + counter.getCount()
+                                                + &quot; times&quot;);
+                counter.increment();
+        }
+}
+</code></pre>
+
+<p>上面的代码中，只要<code>LeakingServlet</code>被调用过一次，且执行它的线程没有停止，就会导致<code>WebappClassLoader</code>泄漏。每次你 reload 一下应用，就会多一份<code>WebappClassLoader</code>实例，最后导致 PermGen <code>OutOfMemoryException</code>。</p>
+
+<h3 id="toc_3">解决问题</h3>
+
+<p>现在我们来思考一下：为什么上面的<code>ThreadLocal</code>子类会导致内存泄漏？</p>
+
+<h4 id="toc_4">WebappClassLoader</h4>
+
+<p>首先，我们要搞清楚<code>WebappClassLoader</code>是什么鬼？</p>
+
+<blockquote>
+<p>对于运行在 Java EE容器中的 Web 应用来说，类加载器的实现方式与一般的 Java 应用有所不同。不同的 Web 容器的实现方式也会有所不同。以 Apache Tomcat 来说，每个 Web 应用都有一个对应的类加载器实例。该类加载器也使用代理模式，所不同的是它是首先尝试去加载某个类，如果找不到再代理给父类加载器。这与一般类加载器的顺序是相反的。这是 Java Servlet 规范中的推荐做法，其目的是使得 Web 应用自己的类的优先级高于 Web 容器提供的类。这种代理模式的一个例外是：Java 核心库的类是不在查找范围之内的。这也是为了保证 Java 核心库的类型安全。</p>
+</blockquote>
+
+<p>也就是说<code>WebappClassLoader</code>是 Tomcat 加载 webapp 的自定义类加载器，每个 webapp 的类加载器都是不一样的，这是为了隔离不同应用加载的类。</p>
+
+<p>那么<code>WebappClassLoader</code>的特性跟内存泄漏有什么关系呢？目前还看不出来，但是它的一个很重要的特点值得我们注意：每个 webapp 都会自己的<code>WebappClassLoader</code>，这跟 Java 核心的类加载器不一样。</p>
+
+<p>我们知道：导致<code>WebappClassLoader</code>泄漏必然是因为它被别的对象强引用了，那么我们可以尝试画出它们的引用关系图。等等！类加载器的作用到底是啥？为什么会被强引用？</p>
+
+<h4 id="toc_5">类的生命周期与类加载器</h4>
+
+<p>要解决上面的问题，我们得去研究一下类的生命周期和类加载器的关系。这个问题说起来又是一篇文章，参考我做的笔记<a href="http://wiki.xiaohansong.com/java/class_lifecycle.html">类的生命周期</a>。</p>
+
+<p>跟我们这个案例相关的主要是类的卸载：</p>
+
+<p>在类使用完之后，如果满足下面的情况，类就会被卸载：</p>
+
+<ol>
+<li>该类所有的实例都已经被回收，也就是 Java 堆中不存在该类的任何实例。</li>
+<li>加载该类的<code>ClassLoader</code>已经被回收。</li>
+<li>该类对应的<code>java.lang.Class</code>对象没有任何地方被引用，没有在任何地方通过反射访问该类的方法。</li>
+</ol>
+
+<p>如果以上三个条件全部满足，JVM 就会在方法区垃圾回收的时候对类进行卸载，类的卸载过程其实就是在方法区中清空类信息，Java 类的整个生命周期就结束了。</p>
+
+<p>由Java虚拟机自带的类加载器所加载的类，在虚拟机的生命周期中，始终不会被卸载。Java虚拟机自带的类加载器包括根类加载器、扩展类加载器和系统类加载器。Java虚拟机本身会始终引用这些类加载器，而这些类加载器则会始终引用它们所加载的类的Class对象，因此这些Class对象始终是可触及的。</p>
+
+<p><strong>由用户自定义的类加载器加载的类是可以被卸载的。</strong></p>
+
+<p>注意上面这句话，<code>WebappClassLoader</code>如果泄漏了，意味着它加载的类都无法被卸载，这就解释了为什么上面的代码会导致 PermGen <code>OutOfMemoryException</code>。</p>
+
+<p>关键点看下面这幅图<br/>
+<img src="media/15473672637020/15473733518822.jpg" alt=""/></p>
+
+<p>我们可以发现：类加载器对象跟它加载的 Class 对象是双向关联的。这意味着，Class 对象可能就是强引用<code>WebappClassLoader</code>，导致它泄漏的元凶。</p>
+
+<h3 id="toc_6">引用关系图</h3>
+
+<p>理解类加载器与类的生命周期的关系之后，我们可以开始画引用关系图了。（图中的<code>LeakingServlet.class</code>与<code>myThreadLocal</code>引用画的不严谨，主要是想表达<code>myThreadLocal</code>是类变量的意思）<br/>
+<img src="media/15473672637020/15473733719336.png" alt=""/></p>
+
+<p>下面，我们根据上面的图来分析<code>WebappClassLoader</code>泄漏的原因。</p>
+
+<ol>
+<li><code>LeakingServlet</code>持有<code>static</code>的<code>MyThreadLocal</code>，导致<code>myThreadLocal</code>的生命周期跟<code>LeakingServlet</code>类的生命周期一样长。意味着<code>myThreadLocal</code>不会被回收，弱引用形同虚设，所以当前线程无法通过<code>ThreadLocalMap</code>的防护措施清除<code>counter</code>的强引用（见<a href="https://blog.xiaohansong.com/ThreadLocal-memory-leak.html">深入分析 ThreadLocal 内存泄漏问题</a>）。</li>
+<li>强引用链：<code>thread -&gt; threadLocalMap -&gt; counter -&gt; MyCounter.class -&gt; WebappClassLocader</code>，导致<code>WebappClassLoader</code>泄漏。</li>
+</ol>
+
+<h2 id="toc_7">总结</h2>
+
+<p>内存泄漏是很难发现的问题，往往由于多方面原因造成。<code>ThreadLocal</code>由于它与线程绑定的生命周期成为了内存泄漏的常客，稍有不慎就酿成大祸。</p>
+
+<p>本文只是对一个特定案例的分析，若能以此举一反三，那便是极好的。最后我留另一个类似的案例供读者分析。</p>
+
+<p><em>本文的案例来自于 Tomcat 的 Wiki <a href="https://wiki.apache.org/tomcat/MemoryLeakProtection">MemoryLeakProtection</a></em></p>
+
+<h2 id="toc_8">课后题</h2>
+
+<p>假设我们有一个定义在 Tomcat Common Classpath 下的类（例如说在 <code>tomcat/lib</code> 目录下）</p>
+
+<pre><code class="language-text">public class ThreadScopedHolder {
+        private final static ThreadLocal&lt;Object&gt; threadLocal = new ThreadLocal&lt;Object&gt;();
+
+        public static void saveInHolder(Object o) {
+                threadLocal.set(o);
+        }
+
+        public static Object getFromHolder() {
+                return threadLocal.get();
+        }
+}
+</code></pre>
+
+<p>两个在 webapp 的类：</p>
+
+<pre><code class="language-text">public class MyCounter {
+        private int count = 0;
+
+        public void increment() {
+                count++;
+        }
+
+        public int getCount() {
+                return count;
+        }
+}
+public class LeakingServlet extends HttpServlet {
+
+        protected void doGet(HttpServletRequest request,
+                        HttpServletResponse response) throws ServletException, IOException {
+
+                MyCounter counter = (MyCounter)ThreadScopedHolder.getFromHolder();
+                if (counter == null) {
+                        counter = new MyCounter();
+                        ThreadScopedHolder.saveInHolder(counter);
+                }
+
+                response.getWriter().println(
+                                &quot;The current thread served this servlet &quot; + counter.getCount()
+                                                + &quot; times&quot;);
+                counter.increment();
+        }
+}
+</code></pre>
+
+<h3 id="toc_9">提示</h3>
+
+<p><img src="media/15473672637020/15473734004660.png" alt=""/></p>
+
+<p><strong>欢迎大家批评指正，留言交流。</strong></p>
+
+<p><em>参考文章</em><br/>
+<a href="http://www.tuicool.com/articles/6BJJzin">ClassLoader内存溢出-从tomcat的reload说起</a><br/>
+<a href="http://blog.csdn.net/u010723709/article/details/50291315">类加载器内存泄露与tomcat自定义加载器</a><br/>
+<a href="http://wiki.xiaohansong.com/java/class_lifecycle.html">类的生命周期</a><br/>
+<a href="http://blog.xiaohansong.com/2016/08/06/ThreadLocal-memory-leak/">深入分析 ThreadLocal 内存泄漏问题</a><br/>
+<a href="http://lengyun3566.iteye.com/blog/1683972">Tomcat源码解读系列（四）——Tomcat类加载机制概述</a><br/>
+<a href="https://wiki.apache.org/tomcat/MemoryLeakProtection">MemoryLeakProtection</a></p>
+
+]]></content>
+  </entry>
+  
+</feed>

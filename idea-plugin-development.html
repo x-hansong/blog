@@ -1,0 +1,695 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  IDEA 插件开发入门教程 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">IDEA 插件开发入门教程</h1>
+				<p class="meta"><time datetime="2019-02-23T16:09:53+08:00" pubdate data-updated="true">2019/2/23</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<p>IntelliJ IDEA 是目前最好用的 JAVA 开发 IDE，它本身的功能已经非常强大了，但是每个人的需求不一样，有些需求 IDEA 本身无法满足，于是我们就需要自己开发插件来解决。工欲善其事，必先利其器，想要提高开发效率，我们可以借助 IDEA 提供的插件功能来满足我们的需求。如果没有我需要的功能怎么办？很简单，我们自己造一个！</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">插件能做什么？</h2>
+
+<p>IDEA 的插件几乎可以做任何事情，因为它把 IDE 本身的能力都封装好开放出来了。主要的插件功能包含以下四种：</p>
+
+<ul>
+<li>自定义语言支持：如果有 IDEA 暂时不支持的语言，你可以自己写一个插件来支持，例如 Go 语言原来的支持就是通过插件做的，后来单独做了一个 Goland。官方有<a href="https://www.jetbrains.org/intellij/sdk/docs/tutorials/custom_language_support_tutorial.html">自定义语言插件支持的教程</a>。</li>
+<li>框架支持：例如<a href="https://plugins.jetbrains.com/plugin/1698">Struts 2</a> 的框架支持</li>
+<li>工具集成：可以给 IDEA 的自带功能进行增强，例如对 Git 的操作增加 CodeReview 的功能。参考<a href="https://plugins.jetbrains.com/plugin/7272-gerrit">Gerrit</a></li>
+<li>用户界面：自定义的插件改变用户界面。参考<a href="https://plugins.jetbrains.com/plugin/72-backgroundimage">BackgroundImage</a></li>
+</ul>
+
+<p>我为了减少重复代码的编写，写了一个代码生成的插件<a href="codemaker.html">IDEA代码生成插件CodeMaker</a>，支持自定义代码生成的模板。</p>
+
+<h2 id="toc_1">Hello world 插件</h2>
+
+<p>依照惯例，我们从 Hello world 开始。</p>
+
+<h3 id="toc_2">新建一个 Gradle 的插件工程</h3>
+
+<p>有些教程推荐用 IDEA 默认的插件工程来开始，但是我比较推荐用 Gradle 来管理整个插件工程，后面的依赖管理会很方便，否则都得靠手动管理。</p>
+
+<p>点击新建工程，选择 Gradle<br/>
+<img src="media/15509093931549/15509139851505.jpg" alt=""/></p>
+
+<p>接下来填写项目属性<br/>
+<img src="media/15509093931549/15509141003827.jpg" alt=""/></p>
+
+<p>配置 Gradle，用默认配置就行<br/>
+<img src="media/15509093931549/15509141354238.jpg" alt=""/></p>
+
+<p>新建完工程之后，IDEA 会自动开始解析项目依赖，因为它要下载一个几百兆的 SDK 依赖包，所以会比较久，打开科学上网能快一点。<br/>
+<img src="media/15509093931549/15509143317086.jpg" alt=""/></p>
+
+<p>Gradle 依赖解析完成之后，项目结构如下图，其中 plugin.xml 是插件的配置，build.gradle 是项目依赖的配置（类比 pom.xml）。<br/>
+<img src="media/15509093931549/15509144197202.jpg" alt=""/></p>
+
+<p>下面就是默认生成的 plugin.xml</p>
+
+<pre><code class="language-text">&lt;idea-plugin&gt;
+    &lt;!--插件id--&gt;
+    &lt;id&gt;com.xiaokai.test.demo&lt;/id&gt;
+    &lt;!--插件名称--&gt;
+    &lt;name&gt;Demo&lt;/name&gt;
+    &lt;!--开发者信息--&gt;
+    &lt;vendor email=&quot;support@yourcompany.com&quot; url=&quot;http://www.yourcompany.com&quot;&gt;YourCompany&lt;/vendor&gt;
+    &lt;!--插件说明--&gt;
+    &lt;description&gt;&lt;![CDATA[
+    Enter short description for your plugin here.&lt;br&gt;
+    &lt;em&gt;most HTML tags may be used&lt;/em&gt;
+    ]]&gt;&lt;/description&gt;
+
+    &lt;!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+         on how to target different products --&gt;
+    &lt;!-- uncomment to enable plugin in all products
+    &lt;depends&gt;com.intellij.modules.lang&lt;/depends&gt;
+    --&gt;
+
+    &lt;!--依赖的其他插件能力--&gt;
+    &lt;extensions defaultExtensionNs=&quot;com.intellij&quot;&gt;
+        &lt;!-- Add your extensions here --&gt;
+    &lt;/extensions&gt;
+
+    &lt;!--插件动作--&gt;
+    &lt;actions&gt;
+        &lt;!-- Add your actions here --&gt;
+    &lt;/actions&gt;
+&lt;/idea-plugin&gt;
+</code></pre>
+
+<h3 id="toc_3">创建一个 Action</h3>
+
+<p>Action 是 IDEA 中对事件响应的处理器，它的 actionPerformed 就像是 JS 中的 onClick 方法。可以看出来，插件的开发本质上跟 web、Android 的开发没有什么不同，因为都是事件驱动的编程。</p>
+
+<p>我们可以直接使用 IDEA 提供的 Action 生成器<br/>
+<img src="media/15509093931549/15509272702450.jpg" alt="" style="width:873px;"/></p>
+
+<p><img src="media/15509093931549/15509277759873.jpg" alt="" style="width:915px;"/></p>
+
+<p>点击 OK 之后会在 src 生成类文件：</p>
+
+<pre><code class="language-text">package com.xiaokai.test;
+
+import com.intellij.openapi.actionSystem.AnAction;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+
+public class HelloWorldAction extends AnAction {
+
+    @Override
+    public void actionPerformed(AnActionEvent e) {
+        // TODO: insert action logic here
+    }
+}
+
+</code></pre>
+
+<p>同时，动作的信息也会注册到 plugin.xml 中</p>
+
+<pre><code class="language-text">    &lt;!--插件动作--&gt;
+    &lt;actions&gt;
+        &lt;!-- Add your actions here --&gt;
+        &lt;action id=&quot;demo.hello.world&quot; class=&quot;com.xiaokai.test.HelloWorldAction&quot; text=&quot;HelloWorld&quot;
+                description=&quot;Say Hello World&quot;&gt;
+            &lt;add-to-group group-id=&quot;GenerateGroup&quot; anchor=&quot;last&quot;/&gt;
+        &lt;/action&gt;
+    &lt;/actions&gt;
+</code></pre>
+
+<h3 id="toc_4">弹出对话框</h3>
+
+<p>创建完 Action 之后我们就要开始往里面写逻辑了，既然是 Hello World 教学，那我们就来试一下最简单的弹出对话框。</p>
+
+<pre><code class="language-text">    @Override
+    public void actionPerformed(AnActionEvent e) {
+        //获取当前在操作的工程上下文
+        Project project = e.getData(PlatformDataKeys.PROJECT);
+
+        //获取当前操作的类文件
+        PsiFile psiFile = e.getData(CommonDataKeys.PSI_FILE);
+        //获取当前类文件的路径
+        String classPath = psiFile.getVirtualFile().getPath();
+        String title = &quot;Hello World!&quot;;
+
+        //显示对话框
+        Messages.showMessageDialog(project, classPath, title, Messages.getInformationIcon());
+    }
+</code></pre>
+
+<p>代码写完之后，打开 Gradle 的界面，点击 runIde 就会启动一个安装了插件的 IDEA，然后就可以进行测试。你还可以右键启动 Debug 模式，这样还能进行断点。<br/>
+<img src="media/15509093931549/15509297684395.jpg" alt="" style="width:1066px;"/></p>
+
+<p>运行的效果如下图：<br/>
+<img src="media/15509093931549/pu.gif" alt="pu"/><br/>
+可以看到，我们右键打开 Generate 菜单之后，里面最后一项就是我们添加的 Action，</p>
+
+<h2 id="toc_5">进阶的教程</h2>
+
+<p>如果想学习更多的原理和设计理念可以看<a href="https://www.jetbrains.org/intellij/sdk/docs/welcome.html">IntelliJ Platform SDK</a>的官方文档。不过老实说，它的文档写的挺差的，基本上就是简单讲了一下概念和原理，没有深入的分析。所以如果要深入研究还得靠自己。最靠谱的学习方式就是看别人写的插件，举个例子，你想知道怎么样实现自动生成代码，你就去找支持这个功能的插件，看他的源码是怎么写的。</p>
+
+<p>我当时写<a href="https://github.com/x-hansong/CodeMaker">CodeMaker</a>的时候也是靠自己啃源码之后写出来的。下面我简单介绍一下我用过的一些 API，这些 API 基本都没有文档说明，全靠代码相传。</p>
+
+<h3 id="toc_6">判断当前光标选择的元素是什么</h3>
+
+<pre><code class="language-text">        //获取当前事件触发时，光标所在的元素
+        PsiElement psiElement = anActionEvent.getData(LangDataKeys.PSI_ELEMENT);
+        //如果光标选择的不是类，弹出对话框提醒
+        if (psiElement == null || !(psiElement instanceof PsiClass)) {
+            Messages.showMessageDialog(project, &quot;Please focus on a class&quot;, &quot;Generate Failed&quot;, null);
+            return;
+        }
+</code></pre>
+
+<h3 id="toc_7">获取当前类文件的所有类对象</h3>
+
+<p>一个类文件中可能会有内部类，所以读取的时候返回的是一个列表</p>
+
+<pre><code class="language-text">    public static List&lt;PsiClass&gt; getClasses(PsiElement element) {
+        List&lt;PsiClass&gt; elements = Lists.newArrayList();
+        List&lt;PsiClass&gt; classElements = PsiTreeUtil.getChildrenOfTypeAsList(element, PsiClass.class);
+        elements.addAll(classElements);
+        for (PsiClass classElement : classElements) {
+            //这里用了递归的方式获取内部类
+            elements.addAll(getClasses(classElement));
+        }
+        return elements;
+    }
+</code></pre>
+
+<h3 id="toc_8">格式化代码</h3>
+
+<pre><code class="language-text">    public static void reformatJavaFile(PsiElement theElement) {
+        CodeStyleManager codeStyleManager = CodeStyleManager.getInstance(theElement.getProject());
+        try {
+            codeStyleManager.reformat(theElement);
+        } catch (Exception e) {
+            LOGGER.error(&quot;reformat code failed&quot;, e);
+        }
+    }
+</code></pre>
+
+<h3 id="toc_9">使用粘贴板</h3>
+
+<pre><code class="language-text">        CopyPasteManager.getInstance()
+            .setContents(new SimpleTransferable(table.toString(), DataFlavor.allHtmlFlavor));
+</code></pre>
+
+<h3 id="toc_10">更多</h3>
+
+<p>更多的技巧可以参考我的项目<a href="https://github.com/x-hansong/CodeMaker">CodeMaker</a>，以及其他的开源插件。</p>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='%E5%B7%A5%E5%85%B7.html'>工具</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="consistency-model.html" 
+	        title="Previous Post: 分布式系统：一致性模型">&laquo; 分布式系统：一致性模型</a>
+	    
+	    
+	        <a class="basic-alignment right" href="vertor-clock.html" 
+	        title="Next Post: 分布式系统：向量时钟">分布式系统：向量时钟 &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>

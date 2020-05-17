@@ -1,0 +1,799 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>
+    
+  【Getty】Java NIO框架设计与实现 - Sharehub
+  
+
+  </title>
+  <meta name="author" content="">
+  <meta name="description" content="To be a professional software engineer.">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <link href="asset/css/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="atom.xml" rel="alternate" title="Sharehub" type="application/atom+xml">
+  <script src="asset/js/modernizr-2.0.js"></script>
+  <script src="asset/js/jquery.min.js"></script>
+  <style type="text/css">
+  .cat-children-p{ padding: 6px 0px;}
+  .hljs{background: none;}
+  </style>
+  <script type="text/javascript">
+  var isAddSildbar = true;
+  </script>
+  <script src="asset/js/octopress.js" type="text/javascript"></script>
+</head>
+<script type="text/javascript">
+//链接新开窗口
+function addBlankTargetForLinks () {
+  $('a[href^="http"]').each(function(){
+      $(this).attr('target', '_blank');
+  });
+}
+$(document).ready(function(event) {
+  addBlankTargetForLinks();
+});
+</script>
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="index.html">Sharehub</a></h1>
+  
+    <h2>To be a professional software engineer.</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.xiaohansong.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+
+  <li id=""><a target="_self" href="index.html">Home</a></li>
+
+  <li id=""><a target="_self" href="archives.html">Archives</a></li>
+
+  <li id=""><a target="_self" href="about.html">About</a></li>
+
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content"> 
+<div>
+	<article class="hentry" role="article">
+	<header>
+			  	<h1 class="entry-title">【Getty】Java NIO框架设计与实现</h1>
+				<p class="meta"><time datetime="2017-07-30T16:14:23+08:00" pubdate data-updated="true">2017/7/30</time></p>
+			 </header>
+		  	<div class="entry-content">
+			  	<h2 id="toc_0">前言</h2>
+
+<p><a href="https://github.com/x-hansong/Getty">Getty</a>是我为了学习 Java NIO 所写的一个 NIO 框架，实现过程中参考了 Netty 的设计，同时使用 Groovy 来实现。虽然只是玩具，但是麻雀虽小，五脏俱全，在实现过程中，不仅熟悉了 NIO 的使用，还借鉴了很多 Netty 的设计思想，提升了自己的编码和设计能力。</p>
+
+<p>至于为什么用 Groovy 来写，因为我刚学了 Groovy，正好拿来练手，加上 Groovy 是兼容 Java 的，所以只是语法上的差别，底层实现还是基于 Java API的。</p>
+
+<p>Getty 的核心代码行数不超过 500 行，一方面得益于 Groovy 简洁的语法，另一方面是因为我只实现了核心的逻辑，最复杂的其实是解码器实现。脚手架容易搭，摩天大楼哪有那么容易盖，但用来学习 NIO 足以。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">线程模型</h2>
+
+<p>Getty 使用的是 Reactor 多线程模型<br/>
+<img src="media/15473672636821/15473736319882.png" alt=""/></p>
+
+<ol>
+<li>有专门一个 NIO 线程- Acceptor 线程用于监听服务端，接收客户端的 TCP 连接请求，然后将连接分配给工作线程，由工作线程来监听读写事件。</li>
+<li>网络 IO 操作-读/写等由多个工作线程负责，由这些工作线程负责消息的读取、解码、编码和发送。</li>
+<li>1 个工作线程可以同时处理N条链路，但是 1 个链路只对应 1 个工作线程，防止发生并发操作问题。</li>
+</ol>
+
+<h2 id="toc_2">事件驱动模型</h2>
+
+<p>整个服务端的流程处理，建立于事件机制上。在 [接受连接－＞读－＞业务处理－＞写 －＞关闭连接 ]这个过程中，触发器将触发相应事件，由事件处理器对相应事件分别响应，完成服务器端的业务处理。</p>
+
+<h3 id="toc_3">事件定义</h3>
+
+<ol>
+<li><code>onRead</code>：当客户端发来数据，并已被工作线程正确读取时，触发该事件 。该事件通知各事件处理器可以对客户端发来的数据进行实际处理了。</li>
+<li><code>onWrite</code>：当客户端可以开始接受服务端发送数据时触发该事件，通过该事件，我们可以向客户端发送响应数据。（当前的实现中并未使用写事件）</li>
+<li><code>onClosed</code>：当客户端与服务器断开连接时触发该事件。</li>
+</ol>
+
+<h3 id="toc_4">事件回调机制的实现</h3>
+
+<p>在这个模型中，事件采用广播方式，也就是所有注册的事件处理器都能获得事件通知。这样可以将不同性质的业务处理，分别用不同的处理器实现，使每个处理器的功能尽可能单一。</p>
+
+<p>如下图：整个事件模型由监听器、事件适配器、事件触发器（HandlerChain，PipeLine）、事件处理器组成。<br/>
+<img src="media/15473672636821/15473736631294.png" alt=""/></p>
+
+<ul>
+<li><p><code>ServerListener</code>：这是一个事件接口，定义需监听的服务器事件</p>
+<pre><code class="language-text">interface ServerListener extends Serializable{
+    /**<br/>
+     * 可读事件回调<br/>
+     * @param request<br/>
+     */<br/>
+    void onRead(ctx)<br/>
+    /**<br/>
+     * 可写事件回调<br/>
+     * @param request<br/>
+     * @param response<br/>
+     */<br/>
+    void onWrite(ctx)<br/>
+    /**<br/>
+     * 连接关闭回调<br/>
+     * @param request<br/>
+     */<br/>
+    void onClosed(ctx)<br/>
+}
+</code></pre></li>
+<li><p><code>EventAdapter</code>：对 Serverlistener 接口实现一个适配器 (EventAdapter)，这样的好处是最终的事件处理器可以只处理所关心的事件。</p>
+<pre><code class="language-text">class EventAdapter implements ServerListener {
+    //下个处理器的引用<br/>
+    protected next<br/>
+    void onRead(Object ctx) {<br/>
+    }<br/>
+    void onWrite(Object ctx) {<br/>
+    }<br/>
+    void onClosed(Object ctx) {<br/>
+    }<br/>
+}
+</code></pre></li>
+<li><p><code>Notifier</code>：用于在适当的时候通过触发服务器事件，通知在册的事件处理器对事件做出响应。</p>
+<pre><code class="language-text">interface Notifier extends Serializable{
+    /**<br/>
+     * 触发所有可读事件回调<br/>
+     */<br/>
+    void fireOnRead(ctx)<br/>
+    /**<br/>
+     * 触发所有可写事件回调<br/>
+     */<br/>
+    void fireOnWrite(ctx)<br/>
+    /**<br/>
+     * 触发所有连接关闭事件回调<br/>
+     */<br/>
+    void fireOnClosed(ctx)<br/>
+}
+</code></pre></li>
+<li><p><code>HandlerChain</code>：实现了<code>Notifier</code>接口，维持有序的事件处理器链条，每次从第一个处理器开始触发。</p>
+<pre><code class="language-text">class HandlerChain implements Notifier{
+    EventAdapter head<br/>
+    EventAdapter tail<br/>
+    /**<br/>
+     * 添加处理器到执行链的最后<br/>
+     * @param handler<br/>
+     */<br/>
+    void addLast(handler) {<br/>
+        if (tail != null) {<br/>
+            tail.next = handler<br/>
+            tail = tail.next<br/>
+        } else {<br/>
+            head = handler<br/>
+            tail = head<br/>
+        }<br/>
+    }<br/>
+    void fireOnRead(ctx) {<br/>
+        head.onRead(ctx)<br/>
+    }<br/>
+    void fireOnWrite(ctx) {<br/>
+        head.onWrite(ctx)<br/>
+    }<br/>
+    void fireOnClosed(ctx) {<br/>
+        head.onClosed(ctx)<br/>
+    }<br/>
+}
+</code></pre></li>
+<li><p><code>PipeLine</code>：实现了<code>Notifier</code>接口，作为事件总线，维持一个事件链的列表。</p>
+<pre><code class="language-text">class PipeLine implements Notifier{
+    static logger = LoggerFactory.getLogger(PipeLine.name)<br/>
+    //监听器队列<br/>
+    def listOfChain = []<br/>
+    PipeLine(){}<br/>
+    /**<br/>
+     * 添加监听器到监听队列中<br/>
+     * @param chain<br/>
+     */<br/>
+    void addChain(chain) {<br/>
+        synchronized (listOfChain) {<br/>
+            if (!listOfChain.contains(chain)) {<br/>
+                listOfChain.add(chain)<br/>
+            }<br/>
+        }<br/>
+    }<br/>
+    /**<br/>
+     * 触发所有可读事件回调<br/>
+     */<br/>
+    void fireOnRead(ctx) {<br/>
+        logger.debug(&quot;fireOnRead&quot;)<br/>
+        listOfChain.each { chain -&gt;<br/>
+            chain.fireOnRead(ctx)<br/>
+        }<br/>
+    }<br/>
+    /**<br/>
+     * 触发所有可写事件回调<br/>
+     */<br/>
+    void fireOnWrite(ctx) {<br/>
+        listOfChain.each { chain -&gt;<br/>
+            chain.fireOnWrite(ctx)<br/>
+        }<br/>
+    }<br/>
+    /**<br/>
+     * 触发所有连接关闭事件回调<br/>
+     */<br/>
+    void fireOnClosed(ctx) {<br/>
+        listOfChain.each { chain -&gt;<br/>
+            chain.fireOnClosed(ctx)<br/>
+        }<br/>
+    }<br/>
+}
+</code></pre></li>
+</ul>
+
+<h3 id="toc_5">事件处理流程</h3>
+
+<p><img src="media/15473672636821/15473736834856.png" alt=""/></p>
+
+<p>事件处理采用职责链模式，每个处理器处理完数据之后会决定是否继续执行下一个处理器。如果处理器不将任务交给线程池处理，那么整个处理流程都在同一个线程中处理。而且每个连接都有单独的<code>PipeLine</code>，工作线程可以在多个连接上下文切换，但是一个连接上下文只会被一个线程处理。</p>
+
+<h2 id="toc_6">核心类</h2>
+
+<h3 id="toc_7">ConnectionCtx</h3>
+
+<p>连接上下文<code>ConnectionCtx</code></p>
+
+<pre><code class="language-text">class ConnectionCtx {
+    /**socket连接*/
+    SocketChannel channel
+    /**用于携带额外参数*/
+    Object attachment
+    /**处理当前连接的工作线程*/
+    Worker worker
+    /**连接超时时间*/
+    Long timeout
+    /**每个连接拥有自己的pipeline*/
+    PipeLine pipeLine
+}
+</code></pre>
+
+<h3 id="toc_8">NioServer</h3>
+
+<p>主线程负责监听端口，持有工作线程的引用（使用轮转法分配连接），每次有连接到来时，将连接放入工作线程的连接队列，并唤醒线程<code>selector.wakeup()</code>（线程可能阻塞在<code>selector</code>上）。</p>
+
+<pre><code class="language-text">class NioServer extends Thread {
+    /**服务端的套接字通道*/
+    ServerSocketChannel ssc
+    /**选择器*/
+    Selector selector
+    /**事件总线*/
+    PipeLine pipeLine
+    /**工作线程列表*/
+    def workers = []
+    /**当前工作线程索引*/
+    int index
+}
+</code></pre>
+
+<h3 id="toc_9">Worker</h3>
+
+<p>工作线程，负责注册server传递过来的socket连接。主要监听读事件，管理socket，处理写操作。</p>
+
+<pre><code class="language-text">class Worker extends Thread {
+    /**选择器*/
+    Selector selector
+    /**读缓冲区*/
+    ByteBuffer buffer
+    /**主线程分配的连接队列*/
+    def queue = []
+    /**存储按超时时间从小到大的连接*/
+    TreeMap&lt;Long, ConnectionCtx&gt; ctxTreeMap
+
+    void run() {
+        while (true) {
+            selector.select()
+            //注册主线程发送过来的连接
+            registerCtx()
+            //关闭超时的连接
+            closeTimeoutCtx()
+            //处理事件
+            dispatchEvent()
+        }
+    }
+}
+</code></pre>
+
+<h2 id="toc_10">运行一个简单的 Web 服务器</h2>
+
+<p>我实现了一系列处理<code>HTTP</code>请求的处理器，具体实现看代码。</p>
+
+<ul>
+<li><code>LineBasedDecoder</code>：行解码器，按行解析数据</li>
+<li><code>HttpRequestDecoder</code>：HTTP请求解析，目前只支持GET请求</li>
+<li><code>HttpRequestHandler</code>：Http 请求处理器，目前只支持GET方法</li>
+<li><code>HttpResponseHandler</code>：Http响应处理器</li>
+</ul>
+
+<p>下面是写在<code>test</code>中的例子</p>
+
+<pre><code class="language-text">class WebServerTest {
+    static void main(args) {
+        def pipeLine = new PipeLine()
+
+        def readChain = new HandlerChain()
+        readChain.addLast(new LineBasedDecoder())
+        readChain.addLast(new HttpRequestDecoder())
+        readChain.addLast(new HttpRequestHandler())
+        readChain.addLast(new HttpResponseHandler())
+
+        def closeChain = new HandlerChain()
+        closeChain.addLast(new ClosedHandler())
+
+        pipeLine.addChain(readChain)
+        pipeLine.addChain(closeChain)
+
+        NioServer nioServer = new NioServer(pipeLine)
+        nioServer.start()
+    }
+}
+</code></pre>
+
+<p>另外，还可以使用配置文件<code>getty.properties</code>设置程序的运行参数。</p>
+
+<pre><code class="language-text">#用于拼接消息时使用的二进制数组的缓存区
+common_buffer_size=1024
+#工作线程读取tcp数据的缓存大小
+worker_rcv_buffer_size=1024
+#监听的端口
+port=4399
+#工作线程的数量
+worker_num=1
+#连接超时自动断开时间
+timeout=900
+#根目录
+root=.
+</code></pre>
+
+<h2 id="toc_11">总结</h2>
+
+<p><a href="https://github.com/x-hansong/Getty">Getty</a>是我造的第二个小轮子，第一个是<a href="https://github.com/x-hansong/RedisHttpSession">RedisHttpSession</a>。都说不要重复造轮子。这话我是认同的，但是掌握一门技术最好的方法就是实践，在没有合适项目可以使用新技术的时候，造一个简单的轮子是不错的实践手段。</p>
+
+<p><a href="https://github.com/x-hansong/Getty">Getty</a> 的缺点或者说还可以优化的点：</p>
+
+<ol>
+<li>线程的使用直接用了<code>Thread</code>类，看起来有点low。等以后水平提升了再来抽象一下。</li>
+<li>目前只有读事件是异步的，写事件是同步的。未来将写事件也改为异步的。</li>
+</ol>
+
+			</div>
+
+		
+	  
+		<footer>
+		 <p class="meta">
+
+			<strong>Categories:</strong>&nbsp; 
+			<span class="categories">
+			
+			    <a class='category' href='Java.html'>Java</a>&nbsp;
+			 
+			</span>
+		    </p>
+		    <p class="meta">
+		      
+		 </p>
+	    
+		<div class="sharing">
+		  
+          
+            <div id="disqus_thread"></div>
+          
+
+          
+
+		</div>
+
+	    <p class="meta">
+	    
+	        <a class="basic-alignment left" href="high-quality-code.html" 
+	        title="Previous Post: 编写高质量代码的思考">&laquo; 编写高质量代码的思考</a>
+	    
+	    
+	        <a class="basic-alignment right" href="idea-live-templates.html" 
+	        title="Next Post: 代码生成利器：IDEA 强大的 Live Templates">代码生成利器：IDEA 强大的 Live Templates &raquo;</a>
+	    
+	    </p>
+	  </footer>
+	</article>
+</div>
+ <aside class="sidebar"> 
+
+	<section>
+	  <h1>Categories</h1>
+	  <ul id="recent_posts">
+	  
+	      <li class="post">
+	        <a href="%E7%BC%96%E7%A8%8B.html"><strong>编程&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="Java.html"><strong>Java&nbsp;(10)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E9%9A%8F%E7%AC%94.html"><strong>随笔&nbsp;(2)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%85%B6%E4%BB%96.html"><strong>其他&nbsp;(7)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%B7%A5%E5%85%B7.html"><strong>工具&nbsp;(5)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E5%88%86%E5%B8%83%E5%BC%8F%E7%B3%BB%E7%BB%9F.html"><strong>分布式系统&nbsp;(9)</strong></a>
+	        
+	        
+	        
+	      </li>
+	  
+	      <li class="post">
+	        <a href="%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html"><strong>计算机基础&nbsp;(3)</strong></a>
+	        
+	        
+	        
+	      </li>
+	   
+	  </ul>
+	</section>
+	<section>
+	  <h1>Recent Posts</h1>
+	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="classloader-isolation.html">Java 类隔离加载的正确姿势</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="java-log-confict-solve.html">Java 日志框架冲突问题排查与总结</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="blockchain.html">多视角看区块链</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
+		      </li>
+	     
+	  
+	      
+		      <li class="post">
+		        <a href="Continuous-Consistency.html">分布式系统：持续一致性</a>
+		      </li>
+	     
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	  
+	      
+	   
+	  </ul>
+	</section>
+	
+</aside> </div></div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2014 -  -
+  <span class="credit">Powered by <a target="_blank" href="http://www.mweb.im">MWeb</a> &nbsp;&nbsp; Theme by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script src="asset/prism.js"></script>
+
+
+<style type="text/css">
+  
+/* PrismJS 1.14.0
+https://prismjs.com/download.html#themes=prism-solarizedlight&languages=markup+css+clike+javascript */
+/*
+ Solarized Color Schemes originally by Ethan Schoonover
+ http://ethanschoonover.com/solarized
+
+ Ported for PrismJS by Hector Matos
+ Website: https://krakendev.io
+ Twitter Handle: https://twitter.com/allonsykraken)
+*/
+
+/*
+SOLARIZED HEX
+--------- -------
+base03    #002b36
+base02    #073642
+base01    #586e75
+base00    #657b83
+base0     #839496
+base1     #93a1a1
+base2     #eee8d5
+base3     #fdf6e3
+yellow    #b58900
+orange    #cb4b16
+red       #dc322f
+magenta   #d33682
+violet    #6c71c4
+blue      #268bd2
+cyan      #2aa198
+green     #859900
+*/
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #657b83; /* base00 */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+
+  line-height: 1.5;
+
+  -moz-tab-size: 4;
+  -o-tab-size: 4;
+  tab-size: 4;
+
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
+  -ms-hyphens: none;
+  hyphens: none;
+}
+
+pre[class*="language-"]::-moz-selection, pre[class*="language-"] ::-moz-selection,
+code[class*="language-"]::-moz-selection, code[class*="language-"] ::-moz-selection {
+  background: #073642; /* base02 */
+}
+
+pre[class*="language-"]::selection, pre[class*="language-"] ::selection,
+code[class*="language-"]::selection, code[class*="language-"] ::selection {
+  background: #073642; /* base02 */
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+  border-radius: 0.3em;
+}
+
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background-color: #fdf6e3; /* base3 */
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #93a1a1; /* base1 */
+}
+
+.token.punctuation {
+  color: #586e75; /* base01 */
+}
+
+.namespace {
+  opacity: .7;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol,
+.token.deleted {
+  color: #268bd2; /* blue */
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.url,
+.token.inserted {
+  color: #2aa198; /* cyan */
+}
+
+.token.entity {
+  color: #657b83; /* base00 */
+  background: #eee8d5; /* base2 */
+}
+
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #859900; /* green */
+}
+
+.token.function,
+.token.class-name {
+  color: #b58900; /* yellow */
+}
+
+.token.regex,
+.token.important,
+.token.variable {
+  color: #cb4b16; /* orange */
+}
+
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+
+pre[class*="language-"].line-numbers {
+    position: relative;
+    padding-left: 3.8em;
+    counter-reset: linenumber;
+}
+
+pre[class*="language-"].line-numbers > code {
+    position: relative;
+    white-space: inherit;
+}
+
+.line-numbers .line-numbers-rows {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    font-size: 100%;
+    left: -3.8em;
+    width: 3em; /* works for line-numbers below 1000 lines */
+    letter-spacing: -1px;
+    border-right: 1px solid #999;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+}
+
+    .line-numbers-rows > span {
+        pointer-events: none;
+        display: block;
+        counter-increment: linenumber;
+    }
+
+        .line-numbers-rows > span:before {
+            content: counter(linenumber);
+            color: #999;
+            display: block;
+            padding-right: 0.8em;
+            text-align: right;
+        }
+
+</style>
+
+<script type="text/javascript">
+    var disqus_shortname = 'hansong'; 
+
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+
+<script type="text/javascript">
+var disqus_shortname = 'hansong'; 
+
+(function () {
+var s = document.createElement('script'); s.async = true;
+s.type = 'text/javascript';
+s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+}());
+</script>
+  
+    
+
+
+</body>
+</html>
