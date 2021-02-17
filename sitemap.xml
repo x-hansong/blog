@@ -2,7 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url>
   <loc>https://blog.xiaohansong.com/</loc>
-  <lastmod>2020-05-17T09:48:40+08:00</lastmod>
+  <lastmod>2021-02-17T19:32:59+08:00</lastmod>
+</url>
+
+<url>
+  <loc>https://blog.xiaohansong.com/16133547248991.html</loc>
+  <lastmod>2021-02-15T10:05:24+08:00</lastmod>
 </url>
 
 <url>
@@ -243,6 +248,10 @@
 
 <url>
   <loc>https://blog.xiaohansong.com/%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%9F%BA%E7%A1%80.html</loc>
+</url>
+
+<url>
+  <loc>https://blog.xiaohansong.com/%E6%95%B0%E6%8D%AE%E5%BA%93.html</loc>
 </url>
 
 
