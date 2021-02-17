@@ -4,7 +4,7 @@
   <title><![CDATA[Sharehub]]></title>
   <link href="https://blog.xiaohansong.com/atom.xml" rel="self"/>
   <link href="https://blog.xiaohansong.com/"/>
-  <updated>2021-02-17T19:28:58+08:00</updated>
+  <updated>2021-02-17T19:32:59+08:00</updated>
   <id>https://blog.xiaohansong.com/</id>
   <author>
     <name><![CDATA[]]></name>
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[从零开始写KV数据库：基于哈希索引]]></title>
-    <link href="https://blog.xiaohansong.com/16133547248991.html"/>
+    <link href="https://blog.xiaohansong.com/kvstore_hash_index.html"/>
     <updated>2021-02-15T10:05:24+08:00</updated>
-    <id>https://blog.xiaohansong.com/16133547248991.html</id>
+    <id>https://blog.xiaohansong.com/kvstore_hash_index.html</id>
     <content type="html"><![CDATA[
 <h2 id="toc_0">前言</h2>
 
