@@ -80,6 +80,30 @@ $(document).ready(function(event) {
 
 	<article>
 		 <header>
+		  	<h1 class="entry-title"><a href="lsmtree_db.html">从零开始写数据库：500行代码实现 LSM 数据库</a></h1>
+			<p class="meta"><time datetime="2021-05-20T16:44:46+08:00" 
+			pubdate data-updated="true">2021/05/20 16:44 下午</time></p>
+		 </header>
+	  	<div class="entry-content">
+		  	
+		  	<h2 id="toc_0">前言</h2>
+
+<p>LSM-Tree 是很多 NoSQL 数据库引擎的底层实现，例如 LevelDB，Hbase 等。本文基于《数据密集型应用系统设计》中对 LSM-Tree 数据库的设计思路，结合代码实现完整地阐述了一个迷你数据库，核心代码 500 行左右，通过理论结合实践来更好地理解数据库的原理。</p>
+
+
+
+		</div>
+
+		 
+		 <footer>
+      	<a rel="full-article" href="lsmtree_db.html#more">read more &rarr;</a>
+    	</footer>
+    	
+
+	</article>
+ 
+	<article>
+		 <header>
 		  	<h1 class="entry-title"><a href="kvstore_hash_index.html">从零开始写KV数据库：基于哈希索引</a></h1>
 			<p class="meta"><time datetime="2021-02-15T10:05:24+08:00" 
 			pubdate data-updated="true">2021/02/15 10:05 上午</time></p>
@@ -285,28 +309,6 @@ $(document).ready(function(event) {
     	
 
 	</article>
- 
-	<article>
-		 <header>
-		  	<h1 class="entry-title"><a href="vertor-clock.html">分布式系统：向量时钟</a></h1>
-			<p class="meta"><time datetime="2019-02-09T17:26:08+08:00" 
-			pubdate data-updated="true">2019/02/09 17:26 下午</time></p>
-		 </header>
-	  	<div class="entry-content">
-		  	
-		  	<p>在上一篇文章<a href="lamport-logic-clock.html">分布式系统：Lamport 逻辑时钟</a>中我们知道Lamport 逻辑时钟帮助我们得到了分布式系统中的事件全序关系，但是对于同时发生的关系却不能很好的描述，导致无法描述事件的因果关系。向量时钟是在 Lamport 时间戳基础上演进的另一种逻辑时钟方法，它通过向量结构不但记录本节点的 Lamport 时间戳，同时也记录了其他节点的 Lamport 时间戳，因此能够很好描述同时发生关系以及事件的因果关系。</p>
-
-
-
-		</div>
-
-		 
-		 <footer>
-      	<a rel="full-article" href="vertor-clock.html#more">read more &rarr;</a>
-    	</footer>
-    	
-
-	</article>
   
 	<div class="pagination">
 	 <a class="prev" href="all_1.html">&larr; Older</a> 
@@ -371,7 +373,7 @@ $(document).ready(function(event) {
 	      </li>
 	  
 	      <li class="post">
-	        <a href="%E6%95%B0%E6%8D%AE%E5%BA%93.html"><strong>数据库&nbsp;(1)</strong></a>
+	        <a href="%E6%95%B0%E6%8D%AE%E5%BA%93.html"><strong>数据库&nbsp;(2)</strong></a>
 	        
 	        
 	        
@@ -382,6 +384,12 @@ $(document).ready(function(event) {
 	<section>
 	  <h1>Recent Posts</h1>
 	  <ul id="recent_posts">
+	  
+	      
+		      <li class="post">
+		        <a href="lsmtree_db.html">从零开始写数据库：500行代码实现 LSM 数据库</a>
+		      </li>
+	     
 	  
 	      
 		      <li class="post">
@@ -404,12 +412,6 @@ $(document).ready(function(event) {
 	      
 		      <li class="post">
 		        <a href="blockchain.html">多视角看区块链</a>
-		      </li>
-	     
-	  
-	      
-		      <li class="post">
-		        <a href="cap-theorem.html">分布式系统：CAP 理论的前世今生</a>
 		      </li>
 	     
 	  
